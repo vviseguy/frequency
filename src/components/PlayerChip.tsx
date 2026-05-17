@@ -18,6 +18,7 @@ export function PlayerChip({
   return (
     <motion.div
       layout
+      data-testid="player-chip"
       initial={{ scale: 0.6, opacity: 0 }}
       animate={{ scale: 1, opacity: player.connected ? 1 : 0.45 }}
       transition={{ type: 'spring', stiffness: 300, damping: 18 }}

@@ -25,9 +25,7 @@ test('a full game: host, join, rounds, reveal, recap, back to lobby', async ({
 
   // everyone sees all three players in the lobby
   for (const p of pages) {
-    await expect(p.getByText('🦊')).toBeVisible();
-    await expect(p.getByText('🐙')).toBeVisible();
-    await expect(p.getByText('🐢')).toBeVisible();
+    await expect(p.getByTestId('player-chip')).toHaveCount(3);
   }
 
   // shorten to 2 rounds via the host's slider
