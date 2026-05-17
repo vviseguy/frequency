@@ -1,0 +1,28 @@
+{
+  "_readme": "Topic packs for Frequency. To add a pack: drop a new <id>.json in this folder ({ name, emoji, version, prompts:[{left,right}] }) and add its id below. To add prompts: append a {left,right} line to a pack file and bump its version. No prompt ids to manage — they're derived.",
+  "version": 1,
+  "packs": [
+    "senses",
+    "society",
+    "food-drink",
+    "feelings",
+    "activities",
+    "hot-takes",
+    "modern-life",
+    "characters",
+    "imagination",
+    "the-world",
+    "screen-and-sound",
+    "words-language",
+    "life-advice",
+    "animals",
+    "relationships",
+    "work-money",
+    "internet-culture",
+    "childhood",
+    "gross-and-weird",
+    "big-questions",
+    "sports-games",
+    "holidays-seasons"
+  ]
+}

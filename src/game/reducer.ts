@@ -31,6 +31,7 @@ export function freshRoom(code: string, ownerClientId: string): RoomState {
     phase: 'LOBBY',
     players: [],
     ownerClientId,
+    packs: [],
     setsTarget: 3,
     setsDone: 0,
     set: null,
@@ -167,6 +168,11 @@ export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): R
         p.clientId === from ? { ...p, name: intent.name.slice(0, 18) } : p,
       );
       return { ...state, players, updatedAt: ctx.now };
+    }
+
+    case 'SET_PACKS': {
+      if (from !== state.ownerClientId || state.phase !== 'LOBBY') return state;
+      return { ...state, packs: [...new Set(intent.packs)], updatedAt: ctx.now };
     }
 
     case 'START_GAME': {

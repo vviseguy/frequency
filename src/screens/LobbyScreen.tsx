@@ -1,7 +1,9 @@
 import { AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
 import { PlayerChip } from '../components/PlayerChip';
 import { ShareLink } from '../components/ShareLink';
 import { Logo, Stage } from '../components/Stage';
+import { TopicPicker } from '../components/TopicPicker';
 import { MIN_PLAYERS, seniorPlayer, setsTargetFor, type RoomState } from '../game/types';
 import { send, useIsHost, useMyId } from '../hooks/useNet';
 import { playSfx } from '../hooks/useSound';
@@ -9,6 +11,7 @@ import { playSfx } from '../hooks/useSound';
 export function LobbyScreen({ room }: { room: RoomState }) {
   const myId = useMyId();
   const isHost = useIsHost();
+  const [showTopics, setShowTopics] = useState(false);
   const connected = room.players.filter((p) => p.connected);
   const canStart = connected.length >= MIN_PLAYERS;
   const cluesEach = setsTargetFor(connected.length);
@@ -62,6 +65,18 @@ export function LobbyScreen({ room }: { room: RoomState }) {
         <p className="-mt-3 text-center text-xs font-bold" style={{ color: 'var(--text-soft)' }}>
           Scales with the room: smaller groups play more clues each.
         </p>
+
+        <button
+          className="btn-ghost w-full"
+          data-testid="topics-btn"
+          onClick={() => setShowTopics(true)}
+        >
+          🎲 Topics:{' '}
+          {room.packs.length ? `${room.packs.length} pack${room.packs.length === 1 ? '' : 's'}` : 'All'}
+          {isHost ? ' · tap to choose' : ''}
+        </button>
+
+        {showTopics && <TopicPicker room={room} onClose={() => setShowTopics(false)} />}
 
         <div className="mt-auto">
           {isHost ? (

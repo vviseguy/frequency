@@ -19,6 +19,15 @@ export interface Prompt {
   left: string;
   right: string;
   category?: string;
+  pack?: string; // pack id this prompt came from
+}
+
+export interface PackMeta {
+  id: string;
+  name: string;
+  emoji: string;
+  count: number;
+  version: number;
 }
 
 export interface Player {
@@ -61,6 +70,7 @@ export interface RoomState {
   phase: Phase;
   players: Player[]; // append-only join order = seniority
   ownerClientId: string;
+  packs: string[]; // selected topic pack ids; [] means "all topics"
   setsTarget: number; // clues each person gives — auto-sized at game start
   setsDone: number;
   set: GameSet | null;

@@ -1,3 +1,4 @@
+import { promptsForPacks } from './prompts';
 import {
   guessersFor,
   type ClueCard,
@@ -35,8 +36,9 @@ export function makeSet(state: RoomState, prompts: Prompt[], index: number): Gam
   const players = state.players
     .filter((p) => p.connected)
     .sort((a, b) => a.joinedAt - b.joinedAt);
-  const recent = new Set(state.history.slice(-prompts.length).map((c) => c.prompt.id));
-  const chosen = pickPrompts(prompts, recent, players.length);
+  const pool = promptsForPacks(prompts, state.packs ?? []);
+  const recent = new Set(state.history.slice(-pool.length).map((c) => c.prompt.id));
+  const chosen = pickPrompts(pool, recent, players.length);
   return {
     index,
     guessIndex: 0,

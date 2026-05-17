@@ -35,15 +35,23 @@ Big celebratory finale. Then back to the lobby.
 
 ## Editing the prompts
 
-All spectrum pairs live in [`public/prompts.json`](public/prompts.json). Edit that
-file **directly on GitHub** (pencil icon → commit to `main`) and the site
-auto-redeploys in ~1 minute. Each entry:
+Prompts are organised into **versioned topic packs** under
+[`public/prompts/`](public/prompts/) — currently **22 packs, ~880 spectrum pairs**.
+The host can pick which topics are in play from the lobby (🎲 Topics).
+
+- **`prompts/index.json`** — lists which pack ids are active.
+- **`prompts/<id>.json`** — one topic pack: `{ name, emoji, version, prompts }`.
+
+To **add prompts**: open a pack file on GitHub, append a line, bump its `version`,
+commit to `main`. No IDs to manage — they're derived automatically.
 
 ```json
-{ "id": "unique-id", "left": "One extreme", "right": "Other extreme", "category": "Optional" }
+{ "left": "One extreme", "right": "The other extreme" }
 ```
 
-Keep every `id` unique. That's the only rule.
+To **add a whole topic**: drop a new `prompts/<id>.json` (same shape, with a `name`
+and an `emoji`) and add its id to `prompts/index.json`. It shows up as a card in the
+topic picker automatically. The site auto-redeploys in ~1 minute.
 
 ## Local development
 
