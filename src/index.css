@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Nunito', system-ui, sans-serif;
+  background-color: #fbf3e4;
+  color: #1a1626;
+  /* prevent pull-to-refresh / rubber-band fighting the dial on mobile */
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Respect notches / home indicator on phones */
+#root {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  box-sizing: border-box;
+}
+
+@layer components {
+  .font-display {
+    font-family: 'Baloo 2', system-ui, sans-serif;
+  }
+
+  /* The signature Memphis "sticker" card: bold ink outline + chunky offset shadow */
+  .card-pop {
+    @apply rounded-3xl border-3 border-ink bg-white shadow-pop;
+  }
+
+  .btn {
+    @apply font-display select-none rounded-2xl border-3 border-ink px-5 py-3
+      text-lg font-extrabold shadow-pop transition-transform
+      active:translate-x-[3px] active:translate-y-[3px] active:shadow-none
+      disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-x-0
+      disabled:active:translate-y-0 disabled:active:shadow-pop;
+    touch-action: manipulation;
+  }
+  .btn-primary {
+    @apply btn bg-grape text-white;
+  }
+  .btn-fun {
+    @apply btn bg-sun text-ink;
+  }
+  .btn-ghost {
+    @apply btn bg-white text-ink;
+  }
+
+  .input-pop {
+    @apply w-full rounded-2xl border-3 border-ink bg-white px-4 py-3 text-lg
+      font-bold outline-none placeholder:text-ink/30 focus:shadow-pop-sm;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-2 rounded-full border-3 border-ink
+      px-3 py-1 text-sm font-extrabold;
+  }
+}
+
+/* The dial track must never scroll/zoom the page while dragging */
+.no-touch-scroll {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* gentle reduced-motion respect */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
