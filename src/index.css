@@ -8,7 +8,7 @@
   --surface: #ffffff;
   --text: #1a1626;
   --text-soft: rgba(26, 22, 38, 0.55);
-  --line: #1a1626; /* bold Memphis outline + sticker shadow */
+  --line: #1a1626;
 }
 
 html.dark {
@@ -16,7 +16,7 @@ html.dark {
   --page: #15101f;
   --surface: #241d35;
   --text: #f6efe0;
-  --text-soft: rgba(246, 239, 224, 0.6);
+  --text-soft: rgba(246, 239, 224, 0.62);
   --line: #f2e9d6;
 }
 
@@ -31,14 +31,16 @@ body {
   font-family: 'Nunito', system-ui, sans-serif;
   background-color: var(--page);
   color: var(--text);
+  /* the document never scrolls — an inner container does, so the fixed
+     background can't jump when the mobile address bar shows/hides */
+  overflow: hidden;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
+  height: 100dvh;
   box-sizing: border-box;
 }
 
@@ -99,18 +101,33 @@ body {
   }
 }
 
-/* Remap the few raw utilities used for accents so dark mode stays coherent. */
-.dark .bg-white {
-  background-color: var(--surface);
-}
+/* Dark-mode safety net: ink-tinted utilities flip to readable light tones. */
 .dark .text-ink {
   color: var(--text);
 }
-.dark .border-ink {
-  border-color: var(--line);
+.dark [class~='text-ink/70'],
+.dark [class~='text-ink/60'],
+.dark [class~='text-ink/55'],
+.dark [class~='text-ink/50'],
+.dark [class~='text-ink/45'],
+.dark [class~='text-ink/40'],
+.dark [class~='text-ink/30'],
+.dark [class~='text-ink/25'],
+.dark [class~='text-ink/20'] {
+  color: var(--text-soft);
 }
 .dark .bg-cream {
   background-color: var(--page);
+}
+.dark .bg-white {
+  background-color: var(--surface);
+}
+.dark .bg-ink {
+  background-color: #7c5cff;
+}
+.dark .border-ink,
+.dark [class~='border-ink/20'] {
+  border-color: var(--line);
 }
 .dark .shadow-pop {
   box-shadow: 4px 4px 0 0 var(--line);
@@ -126,6 +143,23 @@ body {
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* drifting + slowly rotating background shapes (vars set per element) */
+@keyframes floatspin {
+  0% {
+    transform: translate(0, 0) rotate(var(--r0));
+  }
+  50% {
+    transform: translate(var(--dx), var(--dy)) rotate(var(--r1));
+  }
+  100% {
+    transform: translate(0, 0) rotate(var(--r0));
+  }
+}
+.shape-anim {
+  animation: floatspin var(--dur) ease-in-out infinite;
+  animation-delay: var(--delay);
 }
 
 @media (prefers-reduced-motion: reduce) {

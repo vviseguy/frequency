@@ -1,6 +1,6 @@
 {
   "name": "Food & Drink",
-  "emoji": "🍔",
+  "emoji": "🍔🍕🍩",
   "version": 1,
   "prompts": [
     { "left": "Junk food", "right": "Health food" },

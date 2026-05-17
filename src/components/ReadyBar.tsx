@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { readyCountFor } from '../game/rounds';
 import { currentCard, guessersFor, type RoomState } from '../game/types';
 import { send } from '../hooks/useNet';
@@ -14,17 +13,6 @@ export function ReadyBar({ room, myId }: { room: RoomState; myId: string }) {
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="flex items-center gap-1.5">
-        {g.map((p) => (
-          <motion.span
-            key={p.clientId}
-            animate={{ scale: card.ready[p.clientId] ? 1.15 : 1 }}
-            className="h-4 w-4 rounded-full border-3 border-ink"
-            style={{ background: card.ready[p.clientId] ? p.color : 'var(--surface)' }}
-            title={p.name}
-          />
-        ))}
-      </div>
       <p className="font-display text-xl font-extrabold">
         {done}/{total} locked in
       </p>
@@ -38,7 +26,7 @@ export function ReadyBar({ room, myId }: { room: RoomState; myId: string }) {
             send({ t: 'SET_READY', ready: !iAmReady });
           }}
         >
-          {iAmReady ? '✋ Wait, not yet' : '✅ Lock it in!'}
+          {iAmReady ? 'Wait, not yet' : 'Lock it in!'}
         </button>
       )}
     </div>

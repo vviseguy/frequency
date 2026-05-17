@@ -2,7 +2,7 @@
 // spread evenly and don't overlap, with kinds/colours interleaved (no
 // clumps of the same shape). Seeded per-client (persisted) so the layout is
 // stable across reloads but differs between people. Motion is phase-aware.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 
 const COLORS = ['#7C5CFF', '#FF8FD6', '#FF9F45', '#9BE564', '#5BC8FF', '#FFD93D', '#FF6B6B'];
 type Shape = 'blob' | 'zig' | 'squiggle' | 'dots' | 'tri' | 'arc';
@@ -88,9 +88,10 @@ export function MemphisBackground({ motion = 'lazy' }: { motion?: 'lazy' | 'stil
   const items = useMemo(() => {
     const rnd = mulberry32(clientSeed());
     const aspect = vw / vh;
-    const target = Math.max(14, Math.min(54, Math.round((vw * vh) / 30000)));
-    const cols = Math.max(2, Math.round(Math.sqrt(target * aspect)));
-    const rows = Math.max(2, Math.ceil(target / cols));
+    // denser / more bunched than before
+    const target = Math.max(26, Math.min(90, Math.round((vw * vh) / 15000)));
+    const cols = Math.max(3, Math.round(Math.sqrt(target * aspect)));
+    const rows = Math.max(3, Math.ceil(target / cols));
     const cellW = 100 / cols;
     const cellH = 100 / rows;
     const cellMinPx = Math.min((cellW / 100) * vw, (cellH / 100) * vh);
@@ -107,19 +108,23 @@ export function MemphisBackground({ motion = 'lazy' }: { motion?: 'lazy' | 'stil
     return cells.map((cell, n) => {
       const col = cell % cols;
       const row = Math.floor(cell / cols);
-      // keep shapes comfortably inside their cell -> no overlap
-      const jx = (rnd() - 0.5) * cellW * 0.5;
-      const jy = (rnd() - 0.5) * cellH * 0.5;
-      const size = cellMinPx * (0.34 + rnd() * 0.2);
+      const jx = (rnd() - 0.5) * cellW * 0.62;
+      const jy = (rnd() - 0.5) * cellH * 0.62;
+      const size = cellMinPx * (0.42 + rnd() * 0.26);
+      const r0 = Math.floor(rnd() * 360);
+      const r1 = r0 + (rnd() < 0.5 ? -1 : 1) * (18 + rnd() * 34);
       return {
         kind: KINDS[n % KINDS.length],
         color: COLORS[(n * 3 + 1) % COLORS.length],
         left: (col + 0.5) * cellW + jx,
         top: (row + 0.5) * cellH + jy,
         size,
-        delay: rnd() * 8,
-        duration: 16 + rnd() * 16,
-        rotate: Math.floor(rnd() * 360),
+        r0,
+        r1,
+        dx: `${Math.round((rnd() - 0.5) * 36)}px`,
+        dy: `${Math.round((rnd() - 0.5) * 36)}px`,
+        delay: `${(rnd() * 9).toFixed(2)}s`,
+        dur: `${(15 + rnd() * 16).toFixed(2)}s`,
         key: cell,
       };
     });
@@ -130,18 +135,24 @@ export function MemphisBackground({ motion = 'lazy' }: { motion?: 'lazy' | 'stil
       {items.map((it) => (
         <div
           key={it.key}
-          className={`absolute opacity-60 ${motion === 'lazy' ? 'animate-drift' : ''}`}
-          style={{
-            top: `${it.top}%`,
-            left: `${it.left}%`,
-            width: it.size,
-            height: it.size,
-            marginLeft: -it.size / 2,
-            marginTop: -it.size / 2,
-            animationDelay: `${it.delay}s`,
-            animationDuration: `${it.duration}s`,
-            transform: `rotate(${it.rotate}deg)`,
-          }}
+          className={`absolute opacity-60 ${motion === 'lazy' ? 'shape-anim' : ''}`}
+          style={
+            {
+              top: `${it.top}%`,
+              left: `${it.left}%`,
+              width: it.size,
+              height: it.size,
+              marginLeft: -it.size / 2,
+              marginTop: -it.size / 2,
+              transform: `rotate(${it.r0}deg)`,
+              '--r0': `${it.r0}deg`,
+              '--r1': `${it.r1}deg`,
+              '--dx': it.dx,
+              '--dy': it.dy,
+              '--dur': it.dur,
+              '--delay': it.delay,
+            } as CSSProperties
+          }
         >
           <ShapeSvg kind={it.kind} color={it.color} />
         </div>

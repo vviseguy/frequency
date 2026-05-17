@@ -60,6 +60,13 @@ packs in the lobby (`RoomState.packs`, `SET_PACKS`; `[]` = all).
   limited** to two places only: auto-generated player name suggestions
   (`src/lib/identity.ts`) and the bottom-of-screen reaction bar. Don't sprinkle
   decorative emoji elsewhere. Topic-pack `emoji` is pack identity (allowed).
+- **Scrolling:** the document never scrolls (`body{overflow:hidden}`); an
+  inner container in `Stage` scrolls, so the fixed background never jumps on
+  mobile. Content is vertically centred. A sticky header row holds the menu
+  (left) + room-code/copy button (right) at equal height with safe-area top.
+- **URL state:** while in a room the URL carries `?room=CODE`
+  (`history.replaceState`); `HomeScreen` auto-rejoins on load, so a refresh
+  (incl. the host's) recovers the game (clientId persists → slot reclaimed).
 - **Calm > busy:** few large cards per screen, minimal explanatory microcopy.
   The background drifts lazily (frozen in focused play), is laid out on a
   jittered grid (no overlaps / kind clumps), and is seeded per client

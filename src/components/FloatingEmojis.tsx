@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { reactionBudget } from '../game/types';
 import { useRoom } from '../hooks/useNet';
-import { playSfx } from '../hooks/useSound';
+import { playReaction } from '../hooks/useSound';
 import { useNetStore } from '../net/netStore';
 
 interface Floater {
@@ -27,7 +27,7 @@ export function FloatingEmojis() {
     for (const r of reactions) {
       if (seen.current.has(r.id)) continue;
       seen.current.add(r.id);
-      playSfx('pop');
+      playReaction(r.emoji);
       const burst: Floater[] = Array.from({ length: perClick }, (_, i) => ({
         key: `${r.id}-${i}`,
         emoji: r.emoji,

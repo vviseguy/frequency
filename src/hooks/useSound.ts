@@ -18,14 +18,18 @@ type Sfx =
 
 let ctx: AudioContext | null = null;
 let muted = localStorage.getItem('freq.muted') === '1';
+let volume = clamp01(Number(localStorage.getItem('freq.vol') ?? '0.7'));
 const listeners = new Set<() => void>();
 
+function clamp01(n: number) {
+  return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.7;
+}
 function emit() {
   listeners.forEach((l) => l());
 }
 
 function ensure(): AudioContext | null {
-  if (muted) return null;
+  if (muted || volume <= 0) return null;
   if (!ctx) {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AC) return null;
@@ -48,11 +52,12 @@ function blip(
   const t = ac.currentTime + when;
   const osc = ac.createOscillator();
   const g = ac.createGain();
+  const peak = Math.max(0.0002, gain * volume);
   osc.type = type;
   osc.frequency.setValueAtTime(freq, t);
   if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(gain, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(peak, t + 0.012);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   osc.connect(g).connect(ac.destination);
   osc.start(t);
@@ -92,6 +97,30 @@ export function playSfx(name: Sfx) {
   }
 }
 
+// Each reaction emoji gets its own cheap little flourish.
+export function playReaction(emoji: string) {
+  switch (emoji) {
+    case '😂':
+      return arpeggio([660, 560, 660, 520], 0.06, 'triangle', 0.16);
+    case '🎉':
+      return arpeggio([523, 784, 1047], 0.05, 'square', 0.14);
+    case '🔥':
+      return blip(300, 0.28, 'sawtooth', 0, 0.14, 1200);
+    case '😮':
+      return blip(420, 0.22, 'sine', 0, 0.16, 760);
+    case '😭':
+      return blip(700, 0.34, 'sine', 0, 0.15, 240);
+    case '👏':
+      return arpeggio([900, 900, 900], 0.05, 'square', 0.12);
+    case '🤯':
+      return arpeggio([400, 700, 1100, 1500], 0.045, 'sawtooth', 0.14);
+    case '💖':
+      return arpeggio([659, 880, 1175], 0.07, 'triangle', 0.15);
+    default:
+      return blip(680, 0.09, 'triangle', 0, 0.16, 980);
+  }
+}
+
 /** Call once from a user gesture to satisfy iOS autoplay rules. */
 export function unlockAudio() {
   ensure();
@@ -103,12 +132,23 @@ export function toggleMute() {
   emit();
 }
 
+export function setVolume(v: number) {
+  volume = clamp01(v);
+  localStorage.setItem('freq.vol', String(volume));
+  if (volume > 0 && muted) {
+    muted = false;
+    localStorage.setItem('freq.muted', '0');
+  }
+  emit();
+}
+
 export function useMuted(): boolean {
-  return useSyncExternalStore(
-    (cb) => {
-      listeners.add(cb);
-      return () => listeners.delete(cb);
-    },
-    () => muted,
-  );
+  return useSyncExternalStore(subscribe, () => muted);
+}
+export function useVolume(): number {
+  return useSyncExternalStore(subscribe, () => volume);
+}
+function subscribe(cb: () => void) {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
 }

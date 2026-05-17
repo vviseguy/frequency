@@ -1,6 +1,6 @@
 {
   "name": "Animals",
-  "emoji": "🐙",
+  "emoji": "🐙🦊🐢",
   "version": 1,
   "prompts": [
     { "left": "Adorable animal", "right": "Terrifying animal" },

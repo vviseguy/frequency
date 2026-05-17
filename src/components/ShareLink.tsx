@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { qrDataUrl } from '../lib/qr';
 import { shareLink } from '../net/roomCode';
 
-/** One cohesive invite card: code + QR + share, no scattered pieces. */
+/** Big scannable invite for the lobby. */
 export function ShareLink({ code }: { code: string }) {
   const link = shareLink(code);
   const [qr, setQr] = useState('');
@@ -17,7 +17,7 @@ export function ShareLink({ code }: { code: string }) {
     const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
     if (nav.share) {
       try {
-        await nav.share({ title: 'Frequency', text: `Join my game — code ${code}`, url: link });
+        await nav.share({ title: 'Frequency', text: `🎯 Join my Frequency game! Room ${code}`, url: link });
         return;
       } catch {
         /* fell through to copy */
@@ -29,32 +29,34 @@ export function ShareLink({ code }: { code: string }) {
   };
 
   return (
-    <div className="card-pop flex items-center gap-4 p-4">
-      {qr && (
-        <img
-          src={qr}
-          alt="Scan to join"
-          className="h-28 w-28 shrink-0 rounded-xl border-3 border-ink"
-          style={{ background: '#fff' }}
-        />
-      )}
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <p className="text-xs font-extrabold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>
+    <div className="card-pop flex flex-col items-center gap-5 px-8 py-7">
+      <div className="text-center">
+        <p className="text-xs font-extrabold uppercase tracking-[0.2em]" style={{ color: 'var(--text-soft)' }}>
           Room code
         </p>
         <p
           data-testid="room-code"
-          className="font-display text-5xl font-black leading-none tracking-[0.15em] text-grape"
+          className="font-display text-6xl font-black leading-tight tracking-[0.18em] text-grape"
         >
           {code}
         </p>
-        <button className="btn-primary mt-1 w-full px-3 py-2 text-base" onClick={share}>
-          <span className="inline-flex items-center gap-2">
-            {copied ? <Check size={18} strokeWidth={3} /> : <Share2 size={18} strokeWidth={3} />}
-            {copied ? 'Link copied!' : 'Share invite'}
-          </span>
-        </button>
       </div>
+
+      {qr && (
+        <img
+          src={qr}
+          alt="Scan to join"
+          className="h-48 w-48 rounded-lg border-3 border-ink p-3"
+          style={{ background: '#fff' }}
+        />
+      )}
+
+      <button className="btn-primary w-full px-6 py-3" onClick={share}>
+        <span className="inline-flex items-center gap-2">
+          {copied ? <Check size={20} strokeWidth={3} /> : <Share2 size={20} strokeWidth={3} />}
+          {copied ? 'Link copied!' : 'Share invite'}
+        </span>
+      </button>
     </div>
   );
 }

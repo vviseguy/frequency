@@ -1,6 +1,5 @@
 import { ConnectionBadge } from './components/ConnectionBadge';
 import { FloatingEmojis } from './components/FloatingEmojis';
-import { Menu } from './components/Menu';
 import { useWakeLock } from './hooks/useWakeLock';
 import { useRoom } from './hooks/useNet';
 import { useNetStore } from './net/netStore';
@@ -45,7 +44,6 @@ export default function App() {
       )}
 
       <FloatingEmojis />
-      <Menu />
       <ConnectionBadge />
     </>
   );

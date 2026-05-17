@@ -29,12 +29,11 @@ export async function createRoom(page: Page, name: string): Promise<string> {
 export async function joinRoom(
   context: BrowserContext,
   code: string,
-  name: string,
+  _name: string,
 ): Promise<Page> {
   const page = await context.newPage();
+  // ?room= triggers auto-rejoin (the host-refresh recovery path); no clicks.
   await page.goto(`${APP}?room=${code}`);
-  await page.getByTestId('name-input').fill(name);
-  await page.getByTestId('join-btn').click();
   await waitPhase(page, 'LOBBY');
   return page;
 }

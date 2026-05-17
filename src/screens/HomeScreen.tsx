@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Logo, Stage } from '../components/Stage';
 import { netCtl } from '../hooks/useNet';
 import { unlockAudio, playSfx } from '../hooks/useSound';
@@ -44,6 +44,19 @@ export function HomeScreen() {
       setBusy(null);
     }
   };
+
+  // If the URL still has ?room= (e.g. a refresh — including the host's),
+  // reconnect to that game automatically. clientId persists, so you
+  // reclaim your slot.
+  const autoTried = useRef(false);
+  useEffect(() => {
+    const fromUrl = roomFromUrl();
+    if (fromUrl && !autoTried.current) {
+      autoTried.current = true;
+      join(fromUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Stage>

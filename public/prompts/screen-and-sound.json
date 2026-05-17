@@ -1,6 +1,6 @@
 {
   "name": "Screen & Sound",
-  "emoji": "🎬",
+  "emoji": "🎬🎵🎮",
   "version": 1,
   "prompts": [
     { "left": "A total bop", "right": "Skip it" },

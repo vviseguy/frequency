@@ -1,6 +1,6 @@
 {
   "name": "Senses",
-  "emoji": "👃",
+  "emoji": "👃👂👅",
   "version": 1,
   "prompts": [
     { "left": "Hot", "right": "Cold" },

@@ -1,6 +1,6 @@
 {
   "name": "Holidays & Seasons",
-  "emoji": "🎄",
+  "emoji": "🎄🎃🎆",
   "version": 1,
   "prompts": [
     { "left": "Cozy holiday", "right": "Stressful holiday" },
