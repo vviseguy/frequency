@@ -1,9 +1,13 @@
-import type { GameConfig } from './types';
-
 export type Points = 0 | 2 | 3 | 4;
 
+export interface Bands {
+  bullseye: number;
+  close: number;
+  somewhat: number;
+}
+
 /** Distance of the team's guess from the hidden target -> points. */
-export function scoreFor(dial: number, target: number, bands: GameConfig['bands']): Points {
+export function scoreFor(dial: number, target: number, bands: Bands): Points {
   const delta = Math.abs(dial - target);
   if (delta <= bands.bullseye) return 4;
   if (delta <= bands.close) return 3;

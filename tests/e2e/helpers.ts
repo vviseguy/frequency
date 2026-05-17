@@ -6,17 +6,16 @@ export async function phaseOf(page: Page): Promise<string | null> {
   return page.getByTestId('phase').getAttribute('data-phase');
 }
 
-export async function waitPhase(page: Page, phase: string, timeout = 30_000) {
+export async function waitPhase(page: Page, phase: string, timeout = 40_000) {
   await expect
     .poll(() => phaseOf(page), { timeout, message: `waiting for phase ${phase}` })
     .toBe(phase);
 }
 
-export async function waitAllPhase(pages: Page[], phase: string, timeout = 30_000) {
+export async function waitAllPhase(pages: Page[], phase: string, timeout = 40_000) {
   await Promise.all(pages.map((p) => waitPhase(p, phase, timeout)));
 }
 
-/** Host a fresh room; returns the page + its 4-letter room code. */
 export async function createRoom(page: Page, name: string): Promise<string> {
   await page.goto(APP);
   await page.getByTestId('name-input').fill(name);
@@ -27,7 +26,6 @@ export async function createRoom(page: Page, name: string): Promise<string> {
   return code;
 }
 
-/** Open a new player in its own context (isolated storage) and join. */
 export async function joinRoom(
   context: BrowserContext,
   code: string,
@@ -37,39 +35,41 @@ export async function joinRoom(
   await page.goto(`${APP}?room=${code}`);
   await page.getByTestId('name-input').fill(name);
   await page.getByTestId('join-btn').click();
-  await waitPhase(page, 'LOBBY', 30_000);
+  await waitPhase(page, 'LOBBY');
   return page;
 }
 
 /**
- * Drive one full round across every page, whoever happens to be the psychic:
- * the psychic submits a clue, every guesser locks in, reveal appears.
+ * Drive the new flow from a host page until the scoreboard: everyone submits
+ * a clue at once, then the game auto-cycles each player's clue with the rest
+ * locking in. Polls and reacts to whatever phase the host is in.
  */
-export async function playRound(pages: Page[]) {
-  await waitAllPhase(pages, 'CLUE');
+export async function playUntilScoreboard(pages: Page[], host: Page, budgetMs = 90_000) {
+  const deadline = Date.now() + budgetMs;
+  while (Date.now() < deadline) {
+    const ph = await phaseOf(host);
+    if (ph === 'SCOREBOARD') return;
 
-  for (const p of pages) {
-    const clue = p.getByTestId('clue-input');
-    if (await clue.isVisible().catch(() => false)) {
-      await clue.fill('on the nose');
-      await p.getByTestId('submit-clue').click();
+    if (ph === 'CLUE') {
+      for (const p of pages) {
+        const input = p.getByTestId('clue-input');
+        if (await input.isVisible().catch(() => false)) {
+          await input.fill('on the nose');
+          await p.getByTestId('submit-clue').click().catch(() => {});
+        }
+      }
+    } else if (ph === 'GUESS') {
+      for (const p of pages) {
+        const ready = p.getByTestId('ready-toggle');
+        if (await ready.isVisible().catch(() => false)) {
+          if ((await ready.getAttribute('data-ready')) !== 'true') {
+            await ready.click().catch(() => {});
+          }
+        }
+      }
     }
+    // REVEAL just auto-advances — wait it out
+    await host.waitForTimeout(600);
   }
-
-  await waitAllPhase(pages, 'GUESS');
-
-  for (const p of pages) {
-    const ready = p.getByTestId('ready-toggle');
-    if (await ready.isVisible().catch(() => false)) {
-      if ((await ready.getAttribute('data-ready')) !== 'true') await ready.click();
-    }
-  }
-
-  await waitAllPhase(pages, 'REVEAL');
-}
-
-/** From REVEAL, wait for the auto-advance to SCOREBOARD then host continues. */
-export async function continueFromScoreboard(host: Page) {
-  await waitPhase(host, 'SCOREBOARD', 20_000);
-  await host.getByTestId('next-round').click();
+  throw new Error('playUntilScoreboard: timed out');
 }

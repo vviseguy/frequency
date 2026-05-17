@@ -23,7 +23,7 @@ export function FloatingEmojis() {
       if (seen.current.has(r.id)) continue;
       seen.current.add(r.id);
       playSfx('pop');
-      const burst: Floater[] = Array.from({ length: 7 }, (_, i) => ({
+      const burst: Floater[] = Array.from({ length: 4 }, (_, i) => ({
         key: `${r.id}-${i}`,
         emoji: r.emoji,
         left: 8 + Math.random() * 84,

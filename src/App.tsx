@@ -1,5 +1,6 @@
 import { ConnectionBadge } from './components/ConnectionBadge';
 import { FloatingEmojis } from './components/FloatingEmojis';
+import { Menu } from './components/Menu';
 import { useWakeLock } from './hooks/useWakeLock';
 import { useRoom } from './hooks/useNet';
 import { useNetStore } from './net/netStore';
@@ -9,7 +10,6 @@ import { GuessScreen } from './screens/GuessScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { RevealScreen } from './screens/RevealScreen';
-import { RoundIntroScreen } from './screens/RoundIntroScreen';
 import { ScoreboardScreen } from './screens/ScoreboardScreen';
 
 export default function App() {
@@ -19,7 +19,6 @@ export default function App() {
 
   return (
     <>
-      {/* stable hook for e2e: current phase / role */}
       <div
         data-testid="phase"
         data-phase={!room || role === 'none' ? 'HOME' : room.phase}
@@ -30,8 +29,6 @@ export default function App() {
         <HomeScreen />
       ) : room.phase === 'LOBBY' ? (
         <LobbyScreen room={room} />
-      ) : room.phase === 'ROUND_INTRO' ? (
-        <RoundIntroScreen room={room} />
       ) : room.phase === 'CLUE' ? (
         <ClueScreen room={room} />
       ) : room.phase === 'GUESS' ? (
@@ -45,6 +42,7 @@ export default function App() {
       )}
 
       <FloatingEmojis />
+      <Menu />
       <ConnectionBadge />
     </>
   );

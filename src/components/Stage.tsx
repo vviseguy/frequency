@@ -1,11 +1,22 @@
 import type { ReactNode } from 'react';
 import { MemphisBackground } from './memphis/Decor';
 
-/** Centered, mobile-first page frame with the drifting Memphis backdrop. */
-export function Stage({ children }: { children: ReactNode }) {
+/**
+ * Mobile-first page frame. In `focus` mode (active play) the background
+ * freezes and a soft scrim lifts the content onto its own calm pane so the
+ * screen never feels busy. While waiting, the background drifts lazily.
+ */
+export function Stage({ children, focus = false }: { children: ReactNode; focus?: boolean }) {
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center px-4 py-5">
-      <MemphisBackground />
+      <MemphisBackground motion={focus ? 'still' : 'lazy'} />
+      {focus && (
+        <div
+          className="pointer-events-none fixed inset-0 -z-[5] backdrop-blur-[3px]"
+          style={{ background: 'color-mix(in srgb, var(--page) 62%, transparent)' }}
+          aria-hidden
+        />
+      )}
       <div className="flex w-full max-w-md flex-1 flex-col">{children}</div>
     </div>
   );

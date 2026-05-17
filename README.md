@@ -14,15 +14,24 @@ Big celebratory finale. Then back to the lobby.
 
 1. One person taps **Host a new game** → gets a 4-letter room code + QR + share link.
 2. Everyone else opens the link (or enters the code) on their phone.
-3. The host picks rounds/timers and taps **Start**.
-4. Each round: the Psychic gives a short clue → the team drags the dial → everyone
-   taps **Lock it in** → the hidden target is revealed with the score.
-5. After all rounds: an animated recap builds to the champion, then back to the lobby.
+3. The host taps **Start** — no settings to fiddle with.
+4. **Everyone writes a clue at the same time** for their own hidden target on a
+   weird spectrum.
+5. The game then **cycles through each player's clue**: everyone else drags the
+   shared dial and taps **Lock it in**; the target is revealed and the clue-giver
+   scores by how close the group got.
+6. Game length **auto-scales with the room** — smaller groups give more clues each
+   (3 per person ≤4 players, 2 per person ≤8, 1 in big groups). No options to set.
+7. A scoreboard breather between sets, then an animated recap builds to the
+   champion and everyone bounces back to the lobby.
 
 - **Hosting auto-falls-back:** if the host closes their tab/loses signal, the most
   *senior* player (earliest to join) seamlessly becomes the new host and the game
   continues. Keep the host on a device that won't sleep for the smoothest ride.
-- **Reactions** (😂🎉🔥) pop a sound and rain that emoji across everyone's screen.
+- **Reactions** (😂🎉🔥) pop a sound and rain that emoji across everyone's screen —
+  a small budget per turn so it never gets noisy.
+- **Top-left menu** (the ☰): light/dark mode, sound on/off, how-to-play, and
+  leave-game. The drifting background calms to a freeze during focused play.
 
 ## Editing the prompts
 

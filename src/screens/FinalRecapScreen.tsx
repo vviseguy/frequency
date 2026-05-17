@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { Stage } from '../components/Stage';
 import { playerById, type RoomState } from '../game/types';
@@ -8,44 +8,42 @@ import { popConfetti } from '../lib/celebrate';
 
 export function FinalRecapScreen({ room }: { room: RoomState }) {
   const isHost = useIsHost();
-  const rounds = room.history;
-  // step 0..rounds.length-1 reveal each round; >=length -> final podium
+  const cards = room.history;
   const [step, setStep] = useState(0);
-  const finished = step >= rounds.length;
+  const finished = step >= cards.length;
 
   useEffect(() => {
     if (finished) return;
     const id = setTimeout(() => {
-      const r = rounds[step];
-      const pts = r?.results?.[0]?.points ?? 0;
+      const pts = cards[step]?.result?.points ?? 0;
       playSfx(pts >= 3 ? 'score3' : pts ? 'score2' : 'whiff');
       setStep((s) => s + 1);
-    }, 1300);
+    }, 1100);
     return () => clearTimeout(id);
-  }, [step, finished, rounds]);
+  }, [step, finished, cards]);
 
   const standings = useMemo(() => {
     const totals = new Map<string, number>();
-    rounds.slice(0, step).forEach((r) => {
-      const res = r.results?.[0];
-      if (res) totals.set(res.clientId, (totals.get(res.clientId) ?? 0) + res.points);
+    cards.slice(0, step).forEach((c) => {
+      if (c.result) totals.set(c.result.clientId, (totals.get(c.result.clientId) ?? 0) + c.result.points);
     });
     return [...room.players]
       .map((p) => ({ p, score: totals.get(p.clientId) ?? 0 }))
       .sort((a, b) => b.score - a.score);
-  }, [step, rounds, room.players]);
+  }, [step, cards, room.players]);
 
   useEffect(() => {
     if (finished) {
       playSfx('win');
       popConfetti('huge');
-      const id = setInterval(() => popConfetti('big'), 1400);
+      const id = setInterval(() => popConfetti('big'), 1500);
       return () => clearInterval(id);
     }
   }, [finished]);
 
   const max = Math.max(1, ...standings.map((s) => s.score));
   const winner = standings[0];
+  const cur = cards[step];
 
   return (
     <Stage>
@@ -54,27 +52,23 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
           {finished ? '🏆 Final Results!' : '🎞️ The story so far…'}
         </h2>
 
-        <AnimatePresence mode="wait">
-          {!finished && rounds[step] && (
-            <motion.div
-              key={step}
-              initial={{ scale: 0.7, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.7, opacity: 0, y: -20 }}
-              transition={{ type: 'spring', stiffness: 260, damping: 14 }}
-              className="card-pop p-4 text-center"
-            >
-              <p className="font-display text-sm font-extrabold text-ink/40">
-                Round {step + 1}: “{rounds[step].prompt.left} ↔ {rounds[step].prompt.right}”
-              </p>
-              <p className="font-display mt-1 text-2xl font-black">
-                {playerById(room, rounds[step].psychicClientId)?.name.replace(/^\p{Emoji}\s*/u, '')}{' '}
-                scored{' '}
-                <span className="text-grape">+{rounds[step].results?.[0]?.points ?? 0}</span>
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {!finished && cur && (
+          <motion.div
+            key={step}
+            initial={{ scale: 0.7, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 14 }}
+            className="card-pop p-4 text-center"
+          >
+            <p className="font-display text-sm font-extrabold" style={{ color: 'var(--text-soft)' }}>
+              “{cur.prompt.left} ↔ {cur.prompt.right}”
+            </p>
+            <p className="font-display mt-1 text-2xl font-black">
+              {playerById(room, cur.ownerClientId)?.name.replace(/^\p{Emoji}\s*/u, '')} scored{' '}
+              <span className="text-grape">+{cur.result?.points ?? 0}</span>
+            </p>
+          </motion.div>
+        )}
 
         <div className="flex flex-col gap-2">
           {standings.map(({ p, score }, i) => (
@@ -84,14 +78,14 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
               className="card-pop flex items-center gap-3 p-2"
               style={{ boxShadow: `4px 4px 0 0 ${p.color}` }}
             >
-              <span className="w-6 text-center font-display text-xl font-black text-ink/40">
+              <span className="w-6 text-center font-display text-xl font-black" style={{ color: 'var(--text-soft)' }}>
                 {finished && i === 0 ? '👑' : i + 1}
               </span>
               <span className="text-xl">{p.emoji}</span>
               <span className="font-display w-20 truncate text-sm font-black">
                 {p.name.replace(/^\p{Emoji}\s*/u, '')}
               </span>
-              <div className="h-5 flex-1 overflow-hidden rounded-full border-3 border-ink bg-white">
+              <div className="h-5 flex-1 overflow-hidden rounded-full border-3 border-ink" style={{ background: 'var(--surface)' }}>
                 <motion.div
                   className="h-full rounded-full"
                   style={{ background: p.color }}
@@ -112,7 +106,7 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
             className="card-pop bg-sun p-5 text-center"
             data-testid="champion"
           >
-            <p className="font-display text-xl font-black">Champion of the Frequency</p>
+            <p className="font-display text-xl font-black text-ink">Champion of the Frequency</p>
             <p className="font-display text-3xl font-black text-grape">
               {winner?.p.emoji} {winner?.p.name.replace(/^\p{Emoji}\s*/u, '')}!
             </p>
@@ -133,7 +127,10 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
                 🔁 Back to lobby
               </button>
             ) : (
-              <div className="card-pop p-4 text-center font-display font-extrabold text-ink/60">
+              <div
+                className="card-pop p-4 text-center font-display font-extrabold"
+                style={{ color: 'var(--text-soft)' }}
+              >
                 GG! Waiting for the host to reset…
               </div>
             ))}

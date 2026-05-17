@@ -1,48 +1,51 @@
-// Memphis-design decorative layer: pastel squiggles, zigzags, dots and
-// geometric confetti shapes that gently drift behind everything.
-import { useMemo } from 'react';
+// Memphis decorative layer. Layout is seeded per-client (persisted) so it
+// stays roughly the same across reloads but differs between people. Density
+// scales with the viewport. Motion is phase-aware: lazy drift while waiting,
+// frozen during focused play so the screen isn't busy.
+import { useEffect, useMemo, useState } from 'react';
 
 const COLORS = ['#7C5CFF', '#FF8FD6', '#FF9F45', '#9BE564', '#5BC8FF', '#FFD93D', '#FF6B6B'];
-
 type Shape = 'blob' | 'zig' | 'squiggle' | 'dots' | 'tri' | 'arc';
+const KINDS: Shape[] = ['blob', 'zig', 'squiggle', 'dots', 'tri', 'arc'];
+
+function mulberry32(seed: number) {
+  return () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function clientSeed(): number {
+  let s = localStorage.getItem('freq.bgseed');
+  if (!s) {
+    s = String((Math.random() * 1e9) | 0);
+    localStorage.setItem('freq.bgseed', s);
+  }
+  return Number(s);
+}
 
 function ShapeSvg({ kind, color }: { kind: Shape; color: string }) {
-  const stroke = '#1A1626';
+  const stroke = 'var(--line)';
   switch (kind) {
     case 'blob':
       return (
         <svg viewBox="0 0 100 100" className="h-full w-full">
-          <path
-            d="M51 8c20 0 41 12 41 36 0 27-17 48-43 48S6 71 6 45 31 8 51 8Z"
-            fill={color}
-            stroke={stroke}
-            strokeWidth="5"
-          />
+          <path d="M51 8c20 0 41 12 41 36 0 27-17 48-43 48S6 71 6 45 31 8 51 8Z" fill={color} stroke={stroke} strokeWidth="5" />
         </svg>
       );
     case 'zig':
       return (
         <svg viewBox="0 0 120 40" className="h-full w-full">
-          <path
-            d="M4 30 20 10 36 30 52 10 68 30 84 10 100 30 116 10"
-            fill="none"
-            stroke={color}
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <path d="M4 30 20 10 36 30 52 10 68 30 84 10 100 30 116 10" fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
     case 'squiggle':
       return (
         <svg viewBox="0 0 120 40" className="h-full w-full">
-          <path
-            d="M6 20c10-22 22 22 32 0s22 22 32 0 22 22 32 0"
-            fill="none"
-            stroke={color}
-            strokeWidth="8"
-            strokeLinecap="round"
-          />
+          <path d="M6 20c10-22 22 22 32 0s22 22 32 0 22 22 32 0" fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" />
         </svg>
       );
     case 'dots':
@@ -70,36 +73,48 @@ function ShapeSvg({ kind, color }: { kind: Shape; color: string }) {
   }
 }
 
-const KINDS: Shape[] = ['blob', 'zig', 'squiggle', 'dots', 'tri', 'arc'];
+export function MemphisBackground({ motion = 'lazy' }: { motion?: 'lazy' | 'still' }) {
+  const [vw, setVw] = useState(() => (typeof window === 'undefined' ? 1280 : window.innerWidth));
+  const [vh, setVh] = useState(() => (typeof window === 'undefined' ? 800 : window.innerHeight));
+  useEffect(() => {
+    const on = () => {
+      setVw(window.innerWidth);
+      setVh(window.innerHeight);
+    };
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
 
-/** Full-screen, non-interactive, drifting decoration. */
-export function MemphisBackground({ density = 9 }: { density?: number }) {
   const items = useMemo(() => {
-    return Array.from({ length: density }, (_, i) => ({
-      kind: KINDS[i % KINDS.length],
-      color: COLORS[(i * 3) % COLORS.length],
-      top: `${(i * 53 + 7) % 92}%`,
-      left: `${(i * 37 + 5) % 92}%`,
-      size: 44 + ((i * 29) % 70),
-      delay: `${(i % 6) * 0.7}s`,
-      duration: `${8 + (i % 5) * 1.7}s`,
-      rotate: (i * 47) % 360,
+    const rnd = mulberry32(clientSeed());
+    // density-driven: ~1 shape per 22k px², clamped
+    const count = Math.max(18, Math.min(70, Math.round((vw * vh) / 22000)));
+    return Array.from({ length: count }, (_, i) => ({
+      kind: KINDS[Math.floor(rnd() * KINDS.length)],
+      color: COLORS[Math.floor(rnd() * COLORS.length)],
+      top: rnd() * 96,
+      left: rnd() * 96,
+      size: 38 + rnd() * 78,
+      delay: rnd() * 8,
+      duration: 16 + rnd() * 16, // slow & lazy
+      rotate: Math.floor(rnd() * 360),
+      key: i,
     }));
-  }, [density]);
+  }, [vw, vh]);
 
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
-      {items.map((it, i) => (
+      {items.map((it) => (
         <div
-          key={i}
-          className="absolute opacity-70 animate-drift"
+          key={it.key}
+          className={`absolute opacity-70 ${motion === 'lazy' ? 'animate-drift' : ''}`}
           style={{
-            top: it.top,
-            left: it.left,
+            top: `${it.top}%`,
+            left: `${it.left}%`,
             width: it.size,
             height: it.size,
-            animationDelay: it.delay,
-            animationDuration: it.duration,
+            animationDelay: `${it.delay}s`,
+            animationDuration: `${it.duration}s`,
             transform: `rotate(${it.rotate}deg)`,
           }}
         >

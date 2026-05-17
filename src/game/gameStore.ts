@@ -1,14 +1,19 @@
 import { create } from 'zustand';
-import type { RoomState } from './types';
+import { currentCard, type RoomState } from './types';
 
 interface GameState {
   room: RoomState | null;
-  /** Live dial value, kept off the heavy snapshot for low-latency updates. */
+  // Live dial kept off the heavy snapshot for low-latency updates.
   dialValue: number;
   dialDraggerId: string | null;
 
   setRoom: (r: RoomState | null) => void;
   setDial: (value: number, draggerId: string | null) => void;
+}
+
+function turnKey(r: RoomState | null): string {
+  if (!r?.set) return 'none';
+  return `${r.set.index}:${r.set.guessIndex}`;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -18,11 +23,12 @@ export const useGameStore = create<GameState>((set) => ({
   setRoom: (room) =>
     set((s) => {
       if (!room) return { room: null };
-      // keep the fast dial channel authoritative unless a fresher round arrives
       const next: Partial<GameState> = { room };
-      if (room.round && (!s.room?.round || s.room.round.index !== room.round.index)) {
-        next.dialValue = room.round.dial.value;
-        next.dialDraggerId = room.round.dial.draggerId;
+      // resync the fast dial channel whenever the guessed card changes
+      if (turnKey(room) !== turnKey(s.room)) {
+        const card = currentCard(room);
+        next.dialValue = card?.dial.value ?? 50;
+        next.dialDraggerId = card?.dial.draggerId ?? null;
       }
       return next;
     }),

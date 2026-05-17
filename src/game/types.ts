@@ -1,13 +1,17 @@
-// The shared game model. `RoomState` is the single source of truth the host
-// owns and broadcasts; every peer renders from its last received copy.
+// The shared game model. The host owns `RoomState` and broadcasts it; every
+// peer renders from its last received copy.
+//
+// Flow: at the start of each SET, *everyone* writes a clue at the same time
+// for their own hidden target. The game then cycles through each player's
+// clue, the rest guessing on a shared dial. Number of sets (= clues each
+// person gives) is auto-sized by group size — no options.
 
 export type Phase =
   | 'LOBBY'
-  | 'ROUND_INTRO'
-  | 'CLUE'
-  | 'GUESS'
-  | 'REVEAL'
-  | 'SCOREBOARD'
+  | 'CLUE' // everyone writes their clue simultaneously
+  | 'GUESS' // the group guesses the current player's clue
+  | 'REVEAL' // target + score for the current clue
+  | 'SCOREBOARD' // between sets
   | 'FINAL_RECAP';
 
 export interface Prompt {
@@ -18,69 +22,88 @@ export interface Prompt {
 }
 
 export interface Player {
-  clientId: string; // stable id from localStorage (survives refresh/migration)
+  clientId: string;
   name: string;
-  color: string; // assigned Memphis pastel
-  emoji: string; // little avatar
-  joinedAt: number; // host's monotonic counter -> seniority (lower = more senior)
+  color: string;
+  emoji: string;
+  joinedAt: number; // host monotonic counter -> seniority (lower = senior)
   connected: boolean;
   totalScore: number;
 }
 
 export interface RoundResult {
-  clientId: string; // the psychic this round
-  delta: number; // |dial - target|
+  clientId: string; // the clue-giver
+  delta: number;
   points: 0 | 2 | 3 | 4;
 }
 
-export interface Round {
-  index: number; // 0-based
-  psychicClientId: string;
+/** One player's clue for the current set. */
+export interface ClueCard {
+  ownerClientId: string;
   prompt: Prompt;
-  target: number; // 0..100, secret until REVEAL
+  target: number; // 0..100, secret until this card's REVEAL
   clue: string | null;
-  voided: boolean; // psychic left -> round skipped
+  voided: boolean;
   dial: { value: number; draggerId: string | null };
-  ready: Record<string, boolean>; // clientId -> ready (non-psychics)
-  results: RoundResult[] | null;
+  ready: Record<string, boolean>;
+  result: RoundResult | null;
 }
 
-export interface GameConfig {
-  roundsTarget: number;
-  clueSeconds: number;
-  guessSeconds: number;
-  bands: { bullseye: number; close: number; somewhat: number }; // half-widths %
+export interface GameSet {
+  index: number; // 0-based
+  cards: ClueCard[]; // one per player present at clue time, seniority order
+  guessIndex: number; // which card is being guessed now
 }
 
 export interface RoomState {
-  generation: number; // host-migration counter
+  generation: number;
   code: string;
   phase: Phase;
   players: Player[]; // append-only join order = seniority
-  ownerClientId: string; // current host (can press START / NEXT)
-  config: GameConfig;
-  round: Round | null;
-  history: Round[]; // completed rounds, for the final recap
-  phaseEndsAt: number | null; // absolute epoch ms; drives auto-transitions
+  ownerClientId: string;
+  setsTarget: number; // clues each person gives — auto-sized at game start
+  setsDone: number;
+  set: GameSet | null;
+  history: ClueCard[]; // every completed card, for the recap
+  phaseEndsAt: number | null;
   updatedAt: number;
 }
 
 export const MIN_PLAYERS = 2;
 
-export const DEFAULT_CONFIG: GameConfig = {
-  roundsTarget: 8,
-  clueSeconds: 45,
-  guessSeconds: 60,
-  bands: { bullseye: 5, close: 12, somewhat: 22 },
-};
+// No user options — these are fixed, tuned values.
+export const CLUE_SECONDS = 70; // everyone thinks at once, give them room
+export const GUESS_SECONDS = 40;
+export const REVEAL_MS = 6500;
+export const BANDS = { bullseye: 5, close: 12, somewhat: 22 };
 
-/** Most-senior connected player (lowest joinedAt). */
+/** Rounds-per-person, inversely proportional to group size. */
+export function setsTargetFor(connectedCount: number): number {
+  if (connectedCount <= 4) return 3; // small group
+  if (connectedCount <= 8) return 2; // medium group
+  return 1; // very large group
+}
+
+/** Reaction allowance per guess-turn — same as clues each person gives. */
+export function reactionBudget(setsTarget: number): number {
+  return setsTarget;
+}
+
 export function seniorPlayer(players: Player[]): Player | undefined {
-  return players
-    .filter((p) => p.connected)
-    .sort((a, b) => a.joinedAt - b.joinedAt)[0];
+  return players.filter((p) => p.connected).sort((a, b) => a.joinedAt - b.joinedAt)[0];
 }
 
 export function playerById(state: RoomState, id: string): Player | undefined {
   return state.players.find((p) => p.clientId === id);
+}
+
+export function currentCard(state: RoomState): ClueCard | null {
+  const s = state.set;
+  if (!s) return null;
+  return s.cards[s.guessIndex] ?? null;
+}
+
+/** Connected players who guess a given card (everyone but its owner). */
+export function guessersFor(state: RoomState, card: ClueCard): Player[] {
+  return state.players.filter((p) => p.connected && p.clientId !== card.ownerClientId);
 }

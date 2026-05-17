@@ -18,7 +18,6 @@ export type C2H =
   | { t: 'START_GAME' }
   | { t: 'NEXT_ROUND' }
   | { t: 'PLAY_AGAIN' }
-  | { t: 'CONFIG'; patch: Partial<import('../game/types').GameConfig> }
   | { t: 'RENAME'; name: string }
   | { t: 'REACTION'; emoji: string }
   | { t: 'PING'; ts: number };

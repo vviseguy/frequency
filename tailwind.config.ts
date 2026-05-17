@@ -3,6 +3,7 @@ import type { Config } from 'tailwindcss';
 // Memphis-design palette: bright pastels over cream, with bold ink outlines.
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {

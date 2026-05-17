@@ -4,21 +4,21 @@ import { Dial } from '../components/Dial';
 import { ReactionBar } from '../components/ReactionBar';
 import { Stage } from '../components/Stage';
 import { scoreBlurb, scoreLabel } from '../game/scoring';
-import { playerById, type RoomState } from '../game/types';
-import { send, useIsHost } from '../hooks/useNet';
+import { BANDS, currentCard, playerById, type RoomState } from '../game/types';
 import { playSfx } from '../hooks/useSound';
 import { popConfetti } from '../lib/celebrate';
 
 export function RevealScreen({ room }: { room: RoomState }) {
-  const r = room.round!;
-  const isHost = useIsHost();
-  const result = r.results?.[0];
+  const card = currentCard(room)!;
+  const result = card.result;
   const points = result?.points ?? 0;
-  const psychic = playerById(room, r.psychicClientId);
+  const owner = playerById(room, card.ownerClientId);
   const blurb = useMemo(() => scoreBlurb(points), [points]);
+  const total = room.set?.cards.length ?? 0;
+  const idx = (room.set?.guessIndex ?? 0) + 1;
 
   useEffect(() => {
-    if (r.voided) {
+    if (card.voided) {
       playSfx('whiff');
       return;
     }
@@ -35,44 +35,44 @@ export function RevealScreen({ room }: { room: RoomState }) {
       } else {
         playSfx('whiff');
       }
-    }, 650); // beat of suspense before the payoff
+    }, 600);
     return () => clearTimeout(t);
-  }, [points, r.voided]);
+  }, [points, card.voided]);
 
   return (
-    <Stage>
+    <Stage focus>
       <div className="flex flex-1 flex-col gap-4 py-3">
-        <p className="text-center font-display text-lg font-extrabold text-ink/50">
-          {psychic?.emoji} {psychic?.name.replace(/^\p{Emoji}\s*/u, '')} said “
-          <span className="text-grape">{r.clue}</span>”
+        <p className="text-center font-display text-lg font-extrabold" style={{ color: 'var(--text-soft)' }}>
+          Clue {idx}/{total} — {owner?.emoji} {owner?.name.replace(/^\p{Emoji}\s*/u, '')} said “
+          <span className="text-grape">{card.clue}</span>”
         </p>
 
         <motion.div
           className="card-pop p-3"
           initial={{ x: 0 }}
           animate={points === 4 ? { x: [0, -8, 8, -6, 6, 0] } : { x: [0, -3, 3, 0] }}
-          transition={{ delay: 0.65, duration: 0.5 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
         >
           <Dial
-            value={r.dial.value}
-            target={r.target}
+            value={card.dial.value}
+            target={card.target}
             showTarget
             showBands
-            bands={room.config.bands}
-            leftLabel={r.prompt.left}
-            rightLabel={r.prompt.right}
+            bands={BANDS}
+            leftLabel={card.prompt.left}
+            rightLabel={card.prompt.right}
           />
         </motion.div>
 
-        {r.voided ? (
-          <div className="card-pop bg-coral/15 p-4 text-center font-display text-xl font-black text-coral">
-            😵 Psychic disconnected — round skipped!
+        {card.voided ? (
+          <div className="card-pop p-4 text-center font-display text-xl font-black text-coral">
+            😵 {owner?.name.replace(/^\p{Emoji}\s*/u, '')} disconnected — clue skipped!
           </div>
         ) : (
           <motion.div
             initial={{ scale: 0, rotate: -12 }}
             animate={{ scale: 1, rotate: 0 }}
-            transition={{ delay: 0.9, type: 'spring', stiffness: 260, damping: 9 }}
+            transition={{ delay: 0.85, type: 'spring', stiffness: 260, damping: 9 }}
             className="card-pop flex flex-col items-center gap-1 p-5 text-center"
             data-testid="reveal-points"
           >
@@ -80,20 +80,17 @@ export function RevealScreen({ room }: { room: RoomState }) {
               +{points} {points === 4 ? '🎯' : points ? '⭐' : '💨'}
             </p>
             <p className="font-display text-2xl font-black">{scoreLabel(points)}</p>
-            <p className="font-bold text-ink/60">{blurb}</p>
-            <p className="mt-1 text-sm font-extrabold text-ink/40">
-              off by {result?.delta}% — target was {r.target}
+            <p className="font-bold" style={{ color: 'var(--text-soft)' }}>
+              {blurb}
+            </p>
+            <p className="mt-1 text-sm font-extrabold" style={{ color: 'var(--text-soft)' }}>
+              off by {result?.delta}% — target was {card.target}
             </p>
           </motion.div>
         )}
 
-        <div className="mt-auto flex flex-col gap-3">
+        <div className="mt-auto">
           <ReactionBar />
-          {isHost && (
-            <button className="btn-ghost w-full" onClick={() => send({ t: 'NEXT_ROUND' })}>
-              Skip ahead ⏭
-            </button>
-          )}
         </div>
       </div>
     </Stage>

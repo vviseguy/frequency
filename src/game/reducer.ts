@@ -1,12 +1,17 @@
-// The single authoritative game reducer. Runs ONLY on the host. Pure-ish:
-// (state, intent, ctx) -> next state. Time-based transitions live in tick().
+// The single authoritative game reducer. Runs ONLY on the host.
 import type { C2H } from '../net/protocol';
 import { colorFor } from '../lib/identity';
-import { allReady, makeRound, nextPsychic } from './rounds';
+import { allCluesIn, allReadyForCard, makeSet } from './rounds';
 import { scoreFor } from './scoring';
 import {
-  DEFAULT_CONFIG,
+  BANDS,
+  CLUE_SECONDS,
+  currentCard,
+  GUESS_SECONDS,
   MIN_PLAYERS,
+  REVEAL_MS,
+  setsTargetFor,
+  type ClueCard,
   type Player,
   type Prompt,
   type RoomState,
@@ -26,8 +31,9 @@ export function freshRoom(code: string, ownerClientId: string): RoomState {
     phase: 'LOBBY',
     players: [],
     ownerClientId,
-    config: { ...DEFAULT_CONFIG },
-    round: null,
+    setsTarget: 3,
+    setsDone: 0,
+    set: null,
     history: [],
     phaseEndsAt: null,
     updatedAt: Date.now(),
@@ -36,12 +42,7 @@ export function freshRoom(code: string, ownerClientId: string): RoomState {
 
 let joinCounter = 1;
 
-/** Add a brand-new player or re-attach a returning one (by clientId). */
-export function joinPlayer(
-  state: RoomState,
-  clientId: string,
-  name: string,
-): RoomState {
+export function joinPlayer(state: RoomState, clientId: string, name: string): RoomState {
   const players = [...state.players];
   const existing = players.find((p) => p.clientId === clientId);
   if (existing) {
@@ -53,7 +54,7 @@ export function joinPlayer(
     clientId,
     name: name || 'Player',
     color: colorFor(clientId),
-    emoji: (name.match(/\p{Emoji}/u)?.[0]) ?? '🎈',
+    emoji: name.match(/\p{Emoji}/u)?.[0] ?? '🎈',
     joinedAt: joinCounter++,
     connected: true,
     totalScore: 0,
@@ -61,16 +62,11 @@ export function joinPlayer(
   return { ...state, players: [...players, p], updatedAt: Date.now() };
 }
 
-export function setConnected(
-  state: RoomState,
-  clientId: string,
-  connected: boolean,
-): RoomState {
+export function setConnected(state: RoomState, clientId: string, connected: boolean): RoomState {
   const players = state.players.map((p) =>
     p.clientId === clientId ? { ...p, connected } : p,
   );
   let owner = state.ownerClientId;
-  // Owner left -> hand the crown to the most senior connected player.
   if (!connected && clientId === owner) {
     const senior = [...players]
       .filter((p) => p.connected)
@@ -80,46 +76,91 @@ export function setConnected(
   return { ...state, players, ownerClientId: owner, updatedAt: Date.now() };
 }
 
-function startRound(state: RoomState, ctx: Ctx, psychicId: string, index: number): RoomState {
+function startSet(state: RoomState, ctx: Ctx, index: number): RoomState {
   return {
     ...state,
-    phase: 'ROUND_INTRO',
-    round: makeRound(state, ctx.prompts, index, psychicId),
-    phaseEndsAt: ctx.now + 2800,
+    phase: 'CLUE',
+    set: makeSet(state, ctx.prompts, index),
+    phaseEndsAt: ctx.now + CLUE_SECONDS * 1000,
     updatedAt: ctx.now,
   };
 }
 
-function toReveal(state: RoomState, ctx: Ctx, voided = false): RoomState {
-  if (!state.round) return state;
-  const r = state.round;
-  const points = voided ? 0 : scoreFor(r.dial.value, r.target, state.config.bands);
-  const result = {
-    clientId: r.psychicClientId,
-    delta: Math.abs(r.dial.value - r.target),
-    points,
+function beginGuessing(state: RoomState, ctx: Ctx): RoomState {
+  if (!state.set) return state;
+  const cards = state.set.cards.map((c) => ({
+    ...c,
+    clue: c.clue ?? '(out of time!)',
+  }));
+  return {
+    ...state,
+    phase: 'GUESS',
+    set: { ...state.set, cards, guessIndex: 0 },
+    phaseEndsAt: ctx.now + GUESS_SECONDS * 1000,
+    updatedAt: ctx.now,
   };
+}
+
+function scoreCard(card: ClueCard, voided: boolean): ClueCard {
+  const points = voided ? 0 : scoreFor(card.dial.value, card.target, BANDS);
+  return {
+    ...card,
+    voided,
+    result: {
+      clientId: card.ownerClientId,
+      delta: Math.abs(card.dial.value - card.target),
+      points,
+    },
+  };
+}
+
+function toReveal(state: RoomState, ctx: Ctx, voided = false): RoomState {
+  const s = state.set;
+  if (!s) return state;
+  const idx = s.guessIndex;
+  const scored = scoreCard(s.cards[idx], voided);
+  const cards = s.cards.map((c, i) => (i === idx ? scored : c));
   const players = state.players.map((p) =>
-    p.clientId === r.psychicClientId ? { ...p, totalScore: p.totalScore + points } : p,
+    p.clientId === scored.ownerClientId
+      ? { ...p, totalScore: p.totalScore + (scored.result?.points ?? 0) }
+      : p,
   );
   return {
     ...state,
     phase: 'REVEAL',
     players,
-    round: { ...r, voided, results: [result] },
-    phaseEndsAt: ctx.now + 7200,
+    set: { ...s, cards },
+    phaseEndsAt: ctx.now + REVEAL_MS,
     updatedAt: ctx.now,
   };
 }
 
-/** Apply a peer intent. Returns the next state (unchanged if rejected). */
-export function reduce(
-  state: RoomState,
-  from: string,
-  intent: C2H,
-  ctx: Ctx,
-): RoomState {
-  const r = state.round;
+function afterReveal(state: RoomState, ctx: Ctx): RoomState {
+  const s = state.set;
+  if (!s) return state;
+  const next = s.guessIndex + 1;
+  if (next < s.cards.length) {
+    return {
+      ...state,
+      phase: 'GUESS',
+      set: { ...s, guessIndex: next },
+      phaseEndsAt: ctx.now + GUESS_SECONDS * 1000,
+      updatedAt: ctx.now,
+    };
+  }
+  // set complete -> bank cards, breather on the scoreboard
+  return {
+    ...state,
+    phase: 'SCOREBOARD',
+    history: [...state.history, ...s.cards],
+    setsDone: state.setsDone + 1,
+    phaseEndsAt: null,
+    updatedAt: ctx.now,
+  };
+}
+
+export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): RoomState {
+  const s = state.set;
   switch (intent.t) {
     case 'RENAME': {
       const players = state.players.map((p) =>
@@ -128,75 +169,62 @@ export function reduce(
       return { ...state, players, updatedAt: ctx.now };
     }
 
-    case 'CONFIG': {
-      if (from !== state.ownerClientId || state.phase !== 'LOBBY') return state;
-      return {
-        ...state,
-        config: { ...state.config, ...intent.patch },
-        updatedAt: ctx.now,
-      };
-    }
-
     case 'START_GAME': {
       if (from !== state.ownerClientId || state.phase !== 'LOBBY') return state;
-      if (state.players.filter((p) => p.connected).length < MIN_PLAYERS) return state;
-      const reset = {
+      const connected = state.players.filter((p) => p.connected);
+      if (connected.length < MIN_PLAYERS) return state;
+      const reset: RoomState = {
         ...state,
         history: [],
+        setsDone: 0,
+        setsTarget: setsTargetFor(connected.length),
         players: state.players.map((p) => ({ ...p, totalScore: 0 })),
       };
-      const psychic = nextPsychic(reset, null);
-      return startRound(reset, ctx, psychic, 0);
+      return startSet(reset, ctx, 0);
     }
 
     case 'SUBMIT_CLUE': {
-      if (!r || state.phase !== 'CLUE' || from !== r.psychicClientId) return state;
-      return {
-        ...state,
-        phase: 'GUESS',
-        round: { ...r, clue: intent.clue.slice(0, 60) || '(no clue)' },
-        phaseEndsAt: ctx.now + state.config.guessSeconds * 1000,
-        updatedAt: ctx.now,
-      };
+      if (!s || state.phase !== 'CLUE') return state;
+      const cards = s.cards.map((c) =>
+        c.ownerClientId === from ? { ...c, clue: intent.clue.slice(0, 60) || '(no clue)' } : c,
+      );
+      const next = { ...state, set: { ...s, cards }, updatedAt: ctx.now };
+      return allCluesIn(next) ? beginGuessing(next, ctx) : next;
     }
 
     case 'DIAL_GRAB': {
-      if (!r || state.phase !== 'GUESS' || from === r.psychicClientId) return state;
-      if (r.dial.draggerId && r.dial.draggerId !== from) return state; // someone else steering
-      return { ...state, round: { ...r, dial: { ...r.dial, draggerId: from } } };
+      const card = currentCard(state);
+      if (!s || state.phase !== 'GUESS' || !card || from === card.ownerClientId) return state;
+      if (card.dial.draggerId && card.dial.draggerId !== from) return state;
+      return patchCard(state, s, { dial: { ...card.dial, draggerId: from } });
     }
-
     case 'DIAL_MOVE': {
-      if (!r || state.phase !== 'GUESS' || from === r.psychicClientId) return state;
-      if (r.dial.draggerId && r.dial.draggerId !== from) return state;
-      return {
-        ...state,
-        round: { ...r, dial: { value: clamp(intent.value), draggerId: from } },
-      };
+      const card = currentCard(state);
+      if (!s || state.phase !== 'GUESS' || !card || from === card.ownerClientId) return state;
+      if (card.dial.draggerId && card.dial.draggerId !== from) return state;
+      return patchCard(state, s, { dial: { value: clamp(intent.value), draggerId: from } });
     }
-
     case 'DIAL_RELEASE': {
-      if (!r || r.dial.draggerId !== from) return state;
-      return { ...state, round: { ...r, dial: { ...r.dial, draggerId: null } } };
+      const card = currentCard(state);
+      if (!s || !card || card.dial.draggerId !== from) return state;
+      return patchCard(state, s, { dial: { ...card.dial, draggerId: null } });
     }
 
     case 'SET_READY': {
-      if (!r || state.phase !== 'GUESS' || from === r.psychicClientId) return state;
-      const ready = { ...r.ready, [from]: intent.ready };
-      const next = { ...state, round: { ...r, ready }, updatedAt: ctx.now };
-      return allReady(next) ? toReveal(next, ctx) : next;
+      const card = currentCard(state);
+      if (!s || state.phase !== 'GUESS' || !card || from === card.ownerClientId) return state;
+      const withReady = patchCard(state, s, { ready: { ...card.ready, [from]: intent.ready } });
+      return allReadyForCard(withReady, currentCard(withReady)!)
+        ? toReveal(withReady, ctx)
+        : { ...withReady, updatedAt: ctx.now };
     }
 
     case 'NEXT_ROUND': {
-      if (from !== state.ownerClientId) return state;
-      if (state.phase !== 'SCOREBOARD' && state.phase !== 'REVEAL') return state;
-      // bank the just-finished round
-      const history = r ? [...state.history, r] : state.history;
-      if (history.length >= state.config.roundsTarget) {
-        return { ...state, phase: 'FINAL_RECAP', history, round: null, phaseEndsAt: null, updatedAt: ctx.now };
+      if (from !== state.ownerClientId || state.phase !== 'SCOREBOARD') return state;
+      if (state.setsDone >= state.setsTarget) {
+        return { ...state, phase: 'FINAL_RECAP', set: null, phaseEndsAt: null, updatedAt: ctx.now };
       }
-      const psychic = nextPsychic(state, r?.psychicClientId ?? null);
-      return startRound({ ...state, history }, ctx, psychic, history.length);
+      return startSet(state, ctx, state.setsDone);
     }
 
     case 'PLAY_AGAIN': {
@@ -204,8 +232,9 @@ export function reduce(
       return {
         ...state,
         phase: 'LOBBY',
-        round: null,
+        set: null,
         history: [],
+        setsDone: 0,
         phaseEndsAt: null,
         players: state.players.map((p) => ({ ...p, totalScore: 0 })),
         updatedAt: ctx.now,
@@ -217,43 +246,32 @@ export function reduce(
   }
 }
 
-/** Time / presence driven transitions. Called by the host loop ~4x/sec. */
+function patchCard(
+  state: RoomState,
+  s: NonNullable<RoomState['set']>,
+  patch: Partial<ClueCard>,
+): RoomState {
+  const cards = s.cards.map((c, i) => (i === s.guessIndex ? { ...c, ...patch } : c));
+  return { ...state, set: { ...s, cards } };
+}
+
 export function tick(state: RoomState, ctx: Ctx): RoomState {
-  const r = state.round;
+  const s = state.set;
   const due = state.phaseEndsAt != null && ctx.now >= state.phaseEndsAt;
 
-  // Psychic vanished mid-round -> void it.
-  if (r && (state.phase === 'CLUE' || state.phase === 'GUESS')) {
-    const psychic = state.players.find((p) => p.clientId === r.psychicClientId);
-    if (psychic && !psychic.connected) return toReveal(state, ctx, true);
+  if (state.phase === 'GUESS' && s) {
+    const card = currentCard(state);
+    const owner = card && state.players.find((p) => p.clientId === card.ownerClientId);
+    if (card && owner && !owner.connected) return toReveal(state, ctx, true);
   }
 
   switch (state.phase) {
-    case 'ROUND_INTRO':
-      if (due)
-        return {
-          ...state,
-          phase: 'CLUE',
-          phaseEndsAt: ctx.now + state.config.clueSeconds * 1000,
-          updatedAt: ctx.now,
-        };
-      return state;
     case 'CLUE':
-      if (due && r)
-        return {
-          ...state,
-          phase: 'GUESS',
-          round: { ...r, clue: r.clue ?? '(out of time!)' },
-          phaseEndsAt: ctx.now + state.config.guessSeconds * 1000,
-          updatedAt: ctx.now,
-        };
-      return state;
+      return due && s ? beginGuessing(state, ctx) : state;
     case 'GUESS':
-      if (due) return toReveal(state, ctx);
-      return state;
+      return due ? toReveal(state, ctx) : state;
     case 'REVEAL':
-      if (due) return { ...state, phase: 'SCOREBOARD', phaseEndsAt: null, updatedAt: ctx.now };
-      return state;
+      return due ? afterReveal(state, ctx) : state;
     default:
       return state;
   }

@@ -7,16 +7,16 @@ import { playSfx } from '../hooks/useSound';
 export function ScoreboardScreen({ room }: { room: RoomState }) {
   const isHost = useIsHost();
   const ranked = [...room.players].sort((a, b) => b.totalScore - a.totalScore);
-  const done = room.history.length;
-  const total = room.config.roundsTarget;
-  const last = done ? `${done}/${total}` : '';
+  const last = room.setsDone >= room.setsTarget;
 
   return (
     <Stage>
       <div className="flex flex-1 flex-col gap-5 py-4">
         <h2 className="text-center font-display text-4xl font-black">
           📊 Scoreboard
-          <span className="block text-base font-extrabold text-ink/40">Round {last} done</span>
+          <span className="block text-base font-extrabold" style={{ color: 'var(--text-soft)' }}>
+            Set {room.setsDone}/{room.setsTarget} complete
+          </span>
         </h2>
 
         <div className="flex flex-col gap-2">
@@ -29,7 +29,7 @@ export function ScoreboardScreen({ room }: { room: RoomState }) {
               className="card-pop flex items-center gap-3 p-3"
               style={{ boxShadow: `4px 4px 0 0 ${p.color}` }}
             >
-              <span className="font-display w-7 text-2xl font-black text-ink/40">
+              <span className="font-display w-7 text-2xl font-black" style={{ color: 'var(--text-soft)' }}>
                 {i === 0 ? '👑' : i + 1}
               </span>
               <span className="text-2xl">{p.emoji}</span>
@@ -53,10 +53,13 @@ export function ScoreboardScreen({ room }: { room: RoomState }) {
                 send({ t: 'NEXT_ROUND' });
               }}
             >
-              {done >= total ? '🏆 See final results!' : '▶ Next round'}
+              {last ? '🏆 See final results!' : '▶ Next set of clues'}
             </button>
           ) : (
-            <div className="card-pop p-4 text-center font-display font-extrabold text-ink/60">
+            <div
+              className="card-pop p-4 text-center font-display font-extrabold"
+              style={{ color: 'var(--text-soft)' }}
+            >
               Waiting for the host to continue…
             </div>
           )}

@@ -10,7 +10,7 @@ import {
   tick,
   type Ctx,
 } from '../game/reducer';
-import type { Prompt, RoomState } from '../game/types';
+import { currentCard, type Prompt, type RoomState } from '../game/types';
 import type { C2H, ClientId } from './protocol';
 import { send } from './transport';
 
@@ -55,8 +55,15 @@ export class HostServer {
       ...snapshot,
       generation,
       ownerClientId: myClientId,
-      round: snapshot.round
-        ? { ...snapshot.round, dial: { ...snapshot.round.dial, draggerId: null } }
+      // drop any in-flight dragger so the new host re-arbitrates cleanly
+      set: snapshot.set
+        ? {
+            ...snapshot.set,
+            cards: snapshot.set.cards.map((c) => ({
+              ...c,
+              dial: { ...c.dial, draggerId: null },
+            })),
+          }
         : null,
       updatedAt: Date.now(),
     };
@@ -171,9 +178,10 @@ export class HostServer {
     this.state = tick(this.state, this.ctx());
     const changed = this.state !== before;
 
-    if (this.dialDirty && this.state.round) {
+    const card = currentCard(this.state);
+    if (this.dialDirty && card) {
       this.dialDirty = false;
-      const { value, draggerId } = this.state.round.dial;
+      const { value, draggerId } = card.dial;
       this.conns.forEach(({ conn }) =>
         send(conn, this.state.ownerClientId, { t: 'DIAL', value, draggerId }),
       );

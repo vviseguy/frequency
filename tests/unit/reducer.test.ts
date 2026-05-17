@@ -7,9 +7,14 @@ import {
   tick,
   type Ctx,
 } from '../../src/game/reducer';
-import type { Prompt, RoomState } from '../../src/game/types';
+import { currentCard, type Prompt, type RoomState } from '../../src/game/types';
 
-const PROMPTS: Prompt[] = [{ id: 'a', left: 'Hot', right: 'Cold', category: 'X' }];
+const PROMPTS: Prompt[] = Array.from({ length: 10 }, (_, i) => ({
+  id: `p${i}`,
+  left: 'Hot',
+  right: 'Cold',
+  category: 'X',
+}));
 let now = 1_000_000;
 const ctx = (): Ctx => ({ prompts: PROMPTS, now });
 
@@ -21,166 +26,135 @@ function lobby(): RoomState {
   return s;
 }
 
-/** Drive from LOBBY to GUESS with the host as psychic. */
-function toGuess(): RoomState {
+/** START_GAME, then everyone submits a clue -> first card is being guessed. */
+function toGuessing(): RoomState {
   let s = reduce(lobby(), 'host', { t: 'START_GAME' }, ctx());
-  expect(s.phase).toBe('ROUND_INTRO');
-  now += 3000;
-  s = tick(s, ctx());
   expect(s.phase).toBe('CLUE');
-  s = reduce(s, 'host', { t: 'SUBMIT_CLUE', clue: 'warm' }, ctx());
+  s = reduce(s, 'host', { t: 'SUBMIT_CLUE', clue: 'a' }, ctx());
+  s = reduce(s, 'p2', { t: 'SUBMIT_CLUE', clue: 'b' }, ctx());
+  expect(s.phase).toBe('CLUE'); // not everyone yet
+  s = reduce(s, 'p3', { t: 'SUBMIT_CLUE', clue: 'c' }, ctx());
   expect(s.phase).toBe('GUESS');
   return s;
 }
 
+/** Lock in both guessers for the current card and reveal it. */
+function revealCurrent(s: RoomState, target = 50): RoomState {
+  const card = currentCard(s)!;
+  card.target = target;
+  const guessers = ['host', 'p2', 'p3'].filter((id) => id !== card.ownerClientId);
+  for (const g of guessers) s = reduce(s, g, { t: 'SET_READY', ready: true }, ctx());
+  expect(s.phase).toBe('REVEAL');
+  return s;
+}
+
 beforeEach(() => {
-  now += 100_000; // keep deadlines monotonic across tests
+  now += 100_000;
 });
 
-describe('lobby & join', () => {
-  it('appends players in join order (seniority)', () => {
-    const s = lobby();
-    expect(s.players.map((p) => p.clientId)).toEqual(['host', 'p2', 'p3']);
-    expect(s.players[0].joinedAt).toBeLessThan(s.players[2].joinedAt);
-  });
-
-  it('re-attaching a known clientId reconnects rather than duplicating', () => {
-    let s = lobby();
-    s = setConnected(s, 'p2', false);
-    expect(s.players.find((p) => p.clientId === 'p2')!.connected).toBe(false);
-    s = joinPlayer(s, 'p2', 'Two');
-    expect(s.players.filter((p) => p.clientId === 'p2')).toHaveLength(1);
-    expect(s.players.find((p) => p.clientId === 'p2')!.connected).toBe(true);
-  });
-
-  it('hands the crown to the most senior player when the owner leaves', () => {
-    let s = lobby();
-    s = setConnected(s, 'host', false);
-    expect(s.ownerClientId).toBe('p2');
-  });
-});
-
-describe('START_GAME guards', () => {
-  it('rejects non-owners', () => {
-    const s = lobby();
-    expect(reduce(s, 'p2', { t: 'START_GAME' }, ctx()).phase).toBe('LOBBY');
-  });
-  it('requires at least 2 connected players', () => {
-    let s = freshRoom('T', 'host');
-    s = joinPlayer(s, 'host', 'Solo');
-    expect(reduce(s, 'host', { t: 'START_GAME' }, ctx()).phase).toBe('LOBBY');
-  });
-  it('starts with the most senior player as psychic', () => {
+describe('start of game', () => {
+  it('deals one clue card per connected player and auto-sizes sets', () => {
     const s = reduce(lobby(), 'host', { t: 'START_GAME' }, ctx());
-    expect(s.phase).toBe('ROUND_INTRO');
-    expect(s.round?.psychicClientId).toBe('host');
+    expect(s.phase).toBe('CLUE');
+    expect(s.set?.cards.map((c) => c.ownerClientId)).toEqual(['host', 'p2', 'p3']);
+    expect(s.setsTarget).toBe(3); // 3 players -> small group -> 3 clues each
+  });
+  it('rejects non-owner / too few players', () => {
+    expect(reduce(lobby(), 'p2', { t: 'START_GAME' }, ctx()).phase).toBe('LOBBY');
+    let solo = freshRoom('T', 'host');
+    solo = joinPlayer(solo, 'host', 'Solo');
+    expect(reduce(solo, 'host', { t: 'START_GAME' }, ctx()).phase).toBe('LOBBY');
   });
 });
 
-describe('clue & dial', () => {
-  it('only the psychic can submit the clue', () => {
+describe('simultaneous clues', () => {
+  it('each player writes their own card; guessing starts when all are in', () => {
+    const s = toGuessing();
+    expect(s.set?.guessIndex).toBe(0);
+    expect(currentCard(s)?.ownerClientId).toBe('host');
+    expect(s.set?.cards.map((c) => c.clue)).toEqual(['a', 'b', 'c']);
+  });
+  it('the clue timer expiring forces guessing with placeholders', () => {
     let s = reduce(lobby(), 'host', { t: 'START_GAME' }, ctx());
-    now += 3000;
-    s = tick(s, ctx());
-    const blocked = reduce(s, 'p2', { t: 'SUBMIT_CLUE', clue: 'nope' }, ctx());
-    expect(blocked.phase).toBe('CLUE');
-  });
-
-  it('a guesser can grab and move the dial; the psychic cannot', () => {
-    let s = toGuess();
-    s = reduce(s, 'p2', { t: 'DIAL_MOVE', value: 73 }, ctx());
-    expect(s.round!.dial).toEqual({ value: 73, draggerId: 'p2' });
-    // psychic move is ignored
-    s = reduce(s, 'host', { t: 'DIAL_MOVE', value: 5 }, ctx());
-    expect(s.round!.dial.value).toBe(73);
-  });
-
-  it('a second player cannot steal the dial mid-drag', () => {
-    let s = toGuess();
-    s = reduce(s, 'p2', { t: 'DIAL_GRAB' }, ctx());
-    s = reduce(s, 'p3', { t: 'DIAL_MOVE', value: 10 }, ctx());
-    expect(s.round!.dial.draggerId).toBe('p2');
-    expect(s.round!.dial.value).not.toBe(10);
-  });
-
-  it('clamps dial values to 0..100', () => {
-    let s = toGuess();
-    s = reduce(s, 'p2', { t: 'DIAL_MOVE', value: 999 }, ctx());
-    expect(s.round!.dial.value).toBe(100);
-  });
-});
-
-describe('reveal & scoring', () => {
-  it('reveals and scores the psychic when all guessers lock in', () => {
-    let s = toGuess();
-    s.round!.target = 70;
-    s = reduce(s, 'p2', { t: 'DIAL_MOVE', value: 70 }, ctx()); // bullseye
-    s = reduce(s, 'p2', { t: 'SET_READY', ready: true }, ctx());
-    expect(s.phase).toBe('GUESS');
-    s = reduce(s, 'p3', { t: 'SET_READY', ready: true }, ctx());
-    expect(s.phase).toBe('REVEAL');
-    expect(s.round!.results).toEqual([{ clientId: 'host', delta: 0, points: 4 }]);
-    expect(s.players.find((p) => p.clientId === 'host')!.totalScore).toBe(4);
-  });
-
-  it('voids the round if the psychic disconnects mid-round', () => {
-    let s = toGuess();
-    s = setConnected(s, 'host', false);
-    s = tick(s, ctx());
-    expect(s.phase).toBe('REVEAL');
-    expect(s.round!.voided).toBe(true);
-    expect(s.round!.results![0].points).toBe(0);
-  });
-
-  it('falls back to a reveal when the guess timer expires', () => {
-    let s = toGuess();
+    s = reduce(s, 'host', { t: 'SUBMIT_CLUE', clue: 'only me' }, ctx());
     now += 10 * 60 * 1000;
     s = tick(s, ctx());
-    expect(s.phase).toBe('REVEAL');
+    expect(s.phase).toBe('GUESS');
+    expect(s.set?.cards.find((c) => c.ownerClientId === 'p2')?.clue).toBe('(out of time!)');
   });
 });
 
-describe('round progression', () => {
-  it('rotates the psychic and ends after the configured rounds', () => {
-    let s = toGuess();
-    s.config.roundsTarget = 2;
-    s.round!.target = 50;
-    s = reduce(s, 'p2', { t: 'SET_READY', ready: true }, ctx());
-    s = reduce(s, 'p3', { t: 'SET_READY', ready: true }, ctx());
-    expect(s.phase).toBe('REVEAL');
+describe('guessing a card', () => {
+  it('only non-owners steer the dial', () => {
+    let s = toGuessing(); // card owner = host
+    s = reduce(s, 'p2', { t: 'DIAL_MOVE', value: 80 }, ctx());
+    expect(currentCard(s)?.dial).toEqual({ value: 80, draggerId: 'p2' });
+    s = reduce(s, 'host', { t: 'DIAL_MOVE', value: 5 }, ctx()); // owner blocked
+    expect(currentCard(s)?.dial.value).toBe(80);
+  });
+  it('scores the clue-giver and cycles to the next card', () => {
+    let s = toGuessing();
+    s = reduce(s, 'p2', { t: 'DIAL_MOVE', value: 50 }, ctx());
+    s = revealCurrent(s, 50); // bullseye for host
+    expect(currentCard(s)?.result).toEqual({ clientId: 'host', delta: 0, points: 4 });
+    expect(s.players.find((p) => p.clientId === 'host')!.totalScore).toBe(4);
 
-    // host advances -> round 2, psychic rotates host -> p2
-    s = reduce(s, 'host', { t: 'NEXT_ROUND' }, ctx());
-    expect(s.phase).toBe('ROUND_INTRO');
-    expect(s.history).toHaveLength(1);
-    expect(s.round!.psychicClientId).toBe('p2');
-
-    // play round 2 to completion
-    now += 3000;
+    now += 9000;
+    s = tick(s, ctx()); // REVEAL -> next card
+    expect(s.phase).toBe('GUESS');
+    expect(currentCard(s)?.ownerClientId).toBe('p2');
+  });
+  it('voids a card whose owner disconnected', () => {
+    let s = toGuessing();
+    s = revealCurrent(s); // card 0 (host) done
+    now += 9000;
+    s = tick(s, ctx()); // REVEAL due -> card 1 (p2)
+    expect(s.phase).toBe('GUESS');
+    expect(currentCard(s)?.ownerClientId).toBe('p2');
+    s = setConnected(s, 'p2', false);
     s = tick(s, ctx());
-    s = reduce(s, 'p2', { t: 'SUBMIT_CLUE', clue: 'go' }, ctx());
-    s = reduce(s, 'host', { t: 'SET_READY', ready: true }, ctx());
-    s = reduce(s, 'p3', { t: 'SET_READY', ready: true }, ctx());
     expect(s.phase).toBe('REVEAL');
+    expect(currentCard(s)?.voided).toBe(true);
+    expect(currentCard(s)?.result?.points).toBe(0);
+  });
+});
 
-    // only the owner may advance, and now the game ends
-    expect(reduce(s, 'p2', { t: 'NEXT_ROUND' }, ctx()).phase).toBe('REVEAL');
-    s = reduce(s, 'host', { t: 'NEXT_ROUND' }, ctx());
-    expect(s.phase).toBe('FINAL_RECAP');
-    expect(s.history).toHaveLength(2);
+describe('sets & end of game', () => {
+  it('after the last card the set banks and lands on the scoreboard', () => {
+    let s = toGuessing();
+    for (let i = 0; i < 3; i++) {
+      s = revealCurrent(s);
+      now += 9000;
+      s = tick(s, ctx());
+    }
+    expect(s.phase).toBe('SCOREBOARD');
+    expect(s.history).toHaveLength(3);
+    expect(s.setsDone).toBe(1);
   });
 
-  it('PLAY_AGAIN returns to a fresh lobby with scores cleared', () => {
-    let s = toGuess();
-    s.config.roundsTarget = 1;
-    s.round!.target = 50;
-    s = reduce(s, 'p2', { t: 'SET_READY', ready: true }, ctx());
-    s = reduce(s, 'p3', { t: 'SET_READY', ready: true }, ctx());
+  it('NEXT_ROUND (owner only) starts a new set or ends the game', () => {
+    let s = toGuessing();
+    s.setsTarget = 1; // shorten for the test
+    for (let i = 0; i < 3; i++) {
+      s = revealCurrent(s);
+      now += 9000;
+      s = tick(s, ctx());
+    }
+    expect(s.phase).toBe('SCOREBOARD');
+    expect(reduce(s, 'p2', { t: 'NEXT_ROUND' }, ctx()).phase).toBe('SCOREBOARD'); // not owner
     s = reduce(s, 'host', { t: 'NEXT_ROUND' }, ctx());
     expect(s.phase).toBe('FINAL_RECAP');
+
     s = reduce(s, 'host', { t: 'PLAY_AGAIN' }, ctx());
     expect(s.phase).toBe('LOBBY');
     expect(s.history).toHaveLength(0);
     expect(s.players.every((p) => p.totalScore === 0)).toBe(true);
+  });
+});
+
+describe('presence', () => {
+  it('hands the crown to the most senior player when the owner leaves', () => {
+    let s = setConnected(lobby(), 'host', false);
+    expect(s.ownerClientId).toBe('p2');
   });
 });

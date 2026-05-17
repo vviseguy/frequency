@@ -4,6 +4,20 @@
 
 :root {
   color-scheme: light;
+  --page: #fbf3e4;
+  --surface: #ffffff;
+  --text: #1a1626;
+  --text-soft: rgba(26, 22, 38, 0.55);
+  --line: #1a1626; /* bold Memphis outline + sticker shadow */
+}
+
+html.dark {
+  color-scheme: dark;
+  --page: #15101f;
+  --surface: #241d35;
+  --text: #f6efe0;
+  --text-soft: rgba(246, 239, 224, 0.6);
+  --line: #f2e9d6;
 }
 
 html,
@@ -15,17 +29,16 @@ body,
 body {
   margin: 0;
   font-family: 'Nunito', system-ui, sans-serif;
-  background-color: #fbf3e4;
-  color: #1a1626;
-  /* prevent pull-to-refresh / rubber-band fighting the dial on mobile */
+  background-color: var(--page);
+  color: var(--text);
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Respect notches / home indicator on phones */
 #root {
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
   box-sizing: border-box;
 }
 
@@ -34,48 +47,87 @@ body {
     font-family: 'Baloo 2', system-ui, sans-serif;
   }
 
-  /* The signature Memphis "sticker" card: bold ink outline + chunky offset shadow */
   .card-pop {
-    @apply rounded-3xl border-3 border-ink bg-white shadow-pop;
+    border-radius: 1.5rem;
+    border: 3px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 4px 4px 0 0 var(--line);
   }
 
   .btn {
-    @apply font-display select-none rounded-2xl border-3 border-ink px-5 py-3
-      text-lg font-extrabold shadow-pop transition-transform
-      active:translate-x-[3px] active:translate-y-[3px] active:shadow-none
-      disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-x-0
-      disabled:active:translate-y-0 disabled:active:shadow-pop;
+    @apply font-display select-none rounded-2xl px-5 py-3 text-lg font-extrabold
+      transition-transform active:translate-x-[3px] active:translate-y-[3px]
+      disabled:cursor-not-allowed disabled:opacity-50;
+    border: 3px solid var(--line);
+    box-shadow: 4px 4px 0 0 var(--line);
     touch-action: manipulation;
   }
+  .btn:active:not(:disabled) {
+    box-shadow: none;
+  }
   .btn-primary {
-    @apply btn bg-grape text-white;
+    @apply btn text-white;
+    background: #7c5cff;
   }
   .btn-fun {
-    @apply btn bg-sun text-ink;
+    @apply btn;
+    background: #ffd93d;
+    color: #1a1626;
   }
   .btn-ghost {
-    @apply btn bg-white text-ink;
+    @apply btn;
+    background: var(--surface);
+    color: var(--text);
   }
 
   .input-pop {
-    @apply w-full rounded-2xl border-3 border-ink bg-white px-4 py-3 text-lg
-      font-bold outline-none placeholder:text-ink/30 focus:shadow-pop-sm;
+    @apply w-full rounded-2xl px-4 py-3 text-lg font-bold outline-none;
+    border: 3px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+  }
+  .input-pop::placeholder {
+    color: var(--text-soft);
   }
 
   .chip {
-    @apply inline-flex items-center gap-2 rounded-full border-3 border-ink
-      px-3 py-1 text-sm font-extrabold;
+    @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-extrabold;
+    border: 3px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
   }
 }
 
-/* The dial track must never scroll/zoom the page while dragging */
+/* Remap the few raw utilities used for accents so dark mode stays coherent. */
+.dark .bg-white {
+  background-color: var(--surface);
+}
+.dark .text-ink {
+  color: var(--text);
+}
+.dark .border-ink {
+  border-color: var(--line);
+}
+.dark .bg-cream {
+  background-color: var(--page);
+}
+.dark .shadow-pop {
+  box-shadow: 4px 4px 0 0 var(--line);
+}
+.dark .shadow-pop-lg {
+  box-shadow: 7px 7px 0 0 var(--line);
+}
+.dark .shadow-pop-sm {
+  box-shadow: 2px 2px 0 0 var(--line);
+}
+
 .no-touch-scroll {
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
 }
 
-/* gentle reduced-motion respect */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

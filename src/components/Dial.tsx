@@ -1,31 +1,26 @@
-// The spectrum dial: a 180° SVG gauge. Drag anywhere on it (mouse or thumb).
-// The hidden target + colored scoring bands animate in at the reveal.
+// A clean, centered 180° spectrum dial. Drag anywhere on it (mouse or
+// thumb). Scoring zones have hard edges and only appear at the reveal.
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { playSfx } from '../hooks/useSound';
 
 const W = 360;
-const H = 210;
+const H = 196;
 const CX = W / 2;
-const CY = H - 18;
-const R = 150;
+const CY = 172;
+const R = 146;
+const clamp = (n: number) => Math.max(0, Math.min(100, n));
 
-const polar = (value: number, r = R) => {
-  const t = Math.PI - (clamp(value) / 100) * Math.PI;
+function pt(value: number, r = R) {
+  const t = Math.PI * (1 - clamp(value) / 100);
   return { x: CX + r * Math.cos(t), y: CY - r * Math.sin(t) };
-};
-
-function clamp(n: number) {
-  return Math.max(0, Math.min(100, n));
 }
 
-/** Thick arc path between two spectrum values, at radius r. */
+/** Arc path between two spectrum values at radius r (right→left sweep). */
 function arc(v1: number, v2: number, r: number) {
-  const a = polar(Math.min(v1, v2), r);
-  const b = polar(Math.max(v1, v2), r);
-  const large = 0;
-  // sweep flag 0 because we go right(0)->left(180) decreasing angle
-  return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} A ${r} ${r} 0 ${large} 1 ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+  const a = pt(Math.min(v1, v2), r);
+  const b = pt(Math.max(v1, v2), r);
+  return `M ${a.x.toFixed(2)} ${a.y.toFixed(2)} A ${r} ${r} 0 0 1 ${b.x.toFixed(2)} ${b.y.toFixed(2)}`;
 }
 
 interface DialProps {
@@ -62,25 +57,23 @@ export function Dial({
   const svgRef = useRef<SVGSVGElement>(null);
   const [dragging, setDragging] = useState(false);
   const lastTick = useRef(0);
-  // While locally dragging show our own value instantly; otherwise follow state.
   const [local, setLocal] = useState(value);
   useEffect(() => {
     if (!dragging) setLocal(value);
   }, [value, dragging]);
 
   const shown = dragging ? local : value;
-  const handle = polar(shown);
+  const handle = pt(shown);
+  const tgt = target != null ? pt(target) : null;
 
-  const valueFromEvent = useCallback((e: PointerEvent | React.PointerEvent) => {
+  const valueFromEvent = useCallback((e: React.PointerEvent) => {
     const svg = svgRef.current;
     if (!svg) return 50;
     const rect = svg.getBoundingClientRect();
     const px = ((e.clientX - rect.left) / rect.width) * W;
     const py = ((e.clientY - rect.top) / rect.height) * H;
-    const dx = px - CX;
-    const dy = CY - py;
-    let ang = Math.atan2(dy, dx); // 0..π across the top
-    if (ang < 0) ang = px < CX ? Math.PI : 0; // below the line -> snap to nearest end
+    let ang = Math.atan2(CY - py, px - CX); // 0..π across the top
+    if (ang < 0) ang = px < CX ? Math.PI : 0;
     return clamp((1 - ang / Math.PI) * 100);
   }, []);
 
@@ -92,7 +85,7 @@ export function Dial({
     setLocal(v);
     onGrab?.();
     playSfx('grab');
-    if ('vibrate' in navigator) navigator.vibrate?.(8);
+    navigator.vibrate?.(8);
     onChange?.(v);
   };
   const move = (e: React.PointerEvent) => {
@@ -102,7 +95,7 @@ export function Dial({
     if (Math.abs(v - lastTick.current) >= 4) {
       lastTick.current = v;
       playSfx('tick');
-      if ('vibrate' in navigator) navigator.vibrate?.(3);
+      navigator.vibrate?.(3);
     }
     onChange?.(v);
   };
@@ -134,67 +127,57 @@ export function Dial({
           if (e.key === 'ArrowRight') onChange?.(clamp(value + 2));
         }}
       >
-        {/* base track */}
-        <path d={arc(0, 100, R)} fill="none" stroke="#1A1626" strokeWidth="26" strokeLinecap="round" />
-        <path d={arc(0, 100, R)} fill="none" stroke="#FBF3E4" strokeWidth="18" strokeLinecap="round" />
+        {/* track */}
+        <path d={arc(0, 100, R)} fill="none" stroke="var(--line)" strokeWidth="24" strokeLinecap="round" />
+        <path d={arc(0, 100, R)} fill="none" stroke="var(--surface)" strokeWidth="16" strokeLinecap="round" />
 
-        {/* scoring bands — revealed at the end */}
+        {/* hard-edged scoring zones, revealed at the end */}
         {showBands && target != null && (
-          <motion.g
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <path d={arc(target - bands.somewhat, target + bands.somewhat, R)} fill="none" stroke="#5BC8FF" strokeWidth="18" strokeLinecap="round" />
-            <path d={arc(target - bands.close, target + bands.close, R)} fill="none" stroke="#9BE564" strokeWidth="18" strokeLinecap="round" />
-            <path d={arc(target - bands.bullseye, target + bands.bullseye, R)} fill="none" stroke="#FFD93D" strokeWidth="18" strokeLinecap="round" />
+          <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.45 }}>
+            <path d={arc(target - bands.somewhat, target + bands.somewhat, R)} fill="none" stroke="#5BC8FF" strokeWidth="16" strokeLinecap="butt" />
+            <path d={arc(target - bands.close, target + bands.close, R)} fill="none" stroke="#9BE564" strokeWidth="16" strokeLinecap="butt" />
+            <path d={arc(target - bands.bullseye, target + bands.bullseye, R)} fill="none" stroke="#FFD93D" strokeWidth="16" strokeLinecap="butt" />
           </motion.g>
         )}
 
-        {/* tick marks */}
-        {Array.from({ length: 11 }, (_, i) => {
-          const o = polar(i * 10, R + 14);
-          const a = polar(i * 10, R + 4);
-          return <line key={i} x1={o.x} y1={o.y} x2={a.x} y2={a.y} stroke="#1A1626" strokeWidth="3" />;
-        })}
-
-        {/* hidden target needle */}
-        {showTarget && target != null && (
+        {/* hidden target */}
+        {showTarget && tgt && (
           <motion.g
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 260, damping: 9 }}
-            style={{ originX: `${CX}px`, originY: `${CY}px` }}
+            style={{ transformOrigin: `${CX}px ${CY}px` }}
           >
-            <line
-              x1={CX}
-              y1={CY}
-              x2={polar(target, R - 4).x}
-              y2={polar(target, R - 4).y}
-              stroke="#FF6B6B"
-              strokeWidth="5"
-              strokeLinecap="round"
-            />
-            <circle cx={polar(target, R - 4).x} cy={polar(target, R - 4).y} r="9" fill="#FF6B6B" stroke="#1A1626" strokeWidth="3" />
+            <line x1={CX} y1={CY} x2={tgt.x} y2={tgt.y} stroke="#FF6B6B" strokeWidth="5" strokeLinecap="round" />
+            <circle cx={tgt.x} cy={tgt.y} r="9" fill="#FF6B6B" stroke="var(--line)" strokeWidth="3" />
           </motion.g>
         )}
 
         {/* the team's pointer */}
-        <motion.g
-          animate={{ x: handle.x, y: handle.y }}
-          transition={dragging ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 16 }}
-        >
-          <g transform={`translate(${-CX} ${-CY})`}>
-            <line x1={CX} y1={CY} x2={handle.x} y2={handle.y} stroke="#1A1626" strokeWidth="6" strokeLinecap="round" />
-            <circle cx={handle.x} cy={handle.y} r="16" fill={draggerColor} stroke="#1A1626" strokeWidth="4" />
-            {draggerName && (
-              <circle cx={handle.x} cy={handle.y} r="22" fill="none" stroke={draggerColor} strokeWidth="3" className="animate-pulse-ring" />
-            )}
-          </g>
-        </motion.g>
+        <line
+          x1={CX}
+          y1={CY}
+          x2={handle.x}
+          y2={handle.y}
+          stroke="var(--line)"
+          strokeWidth="6"
+          strokeLinecap="round"
+          style={{ transition: dragging ? 'none' : 'all 0.18s ease-out' }}
+        />
+        <circle
+          cx={handle.x}
+          cy={handle.y}
+          r="15"
+          fill={draggerColor}
+          stroke="var(--line)"
+          strokeWidth="4"
+          style={{ transition: dragging ? 'none' : 'all 0.18s ease-out' }}
+        />
+        {draggerName && (
+          <circle cx={handle.x} cy={handle.y} r="21" fill="none" stroke={draggerColor} strokeWidth="3" className="animate-pulse-ring" />
+        )}
 
-        {/* hub */}
-        <circle cx={CX} cy={CY} r="12" fill="#1A1626" />
+        <circle cx={CX} cy={CY} r="10" fill="var(--line)" />
       </svg>
 
       <div className="mt-1 flex items-start justify-between gap-3 px-1">
@@ -207,7 +190,7 @@ export function Dial({
       </div>
 
       {draggerName && (
-        <p className="mt-2 text-center font-display text-sm font-extrabold text-ink/70">
+        <p className="mt-2 text-center font-display text-sm font-extrabold" style={{ color: 'var(--text-soft)' }}>
           🎚️ {draggerName} is steering…
         </p>
       )}
