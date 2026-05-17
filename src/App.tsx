@@ -19,6 +19,13 @@ export default function App() {
 
   return (
     <>
+      {/* stable hook for e2e: current phase / role */}
+      <div
+        data-testid="phase"
+        data-phase={!room || role === 'none' ? 'HOME' : room.phase}
+        data-role={role}
+        hidden
+      />
       {!room || role === 'none' ? (
         <HomeScreen />
       ) : room.phase === 'LOBBY' ? (

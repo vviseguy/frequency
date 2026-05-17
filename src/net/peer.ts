@@ -36,7 +36,8 @@ export function openPeer(id?: string): Promise<Peer> {
             host: customHost,
             port: Number(import.meta.env.VITE_PEER_PORT ?? 443),
             path: (import.meta.env.VITE_PEER_PATH as string) ?? '/',
-            secure: true,
+            // default to secure unless explicitly disabled (local test server)
+            secure: import.meta.env.VITE_PEER_SECURE !== 'false',
           }
         : {}),
     });

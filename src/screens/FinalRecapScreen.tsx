@@ -110,6 +110,7 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 220, damping: 10 }}
             className="card-pop bg-sun p-5 text-center"
+            data-testid="champion"
           >
             <p className="font-display text-xl font-black">Champion of the Frequency</p>
             <p className="font-display text-3xl font-black text-grape">
@@ -123,6 +124,7 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
             (isHost ? (
               <button
                 className="btn-primary w-full text-xl"
+                data-testid="play-again"
                 onClick={() => {
                   playSfx('join');
                   send({ t: 'PLAY_AGAIN' });

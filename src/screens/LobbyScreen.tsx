@@ -45,6 +45,7 @@ export function LobbyScreen({ room }: { room: RoomState }) {
             <h2 className="font-display text-xl font-black">Game settings</h2>
             <Slider
               label="Rounds"
+              testid="rounds-slider"
               value={room.config.roundsTarget}
               min={2}
               max={20}
@@ -75,6 +76,7 @@ export function LobbyScreen({ room }: { room: RoomState }) {
           {isHost ? (
             <button
               className="btn-primary w-full text-2xl"
+              data-testid="start-btn"
               disabled={!canStart}
               onClick={() => {
                 playSfx('reveal');
@@ -84,7 +86,10 @@ export function LobbyScreen({ room }: { room: RoomState }) {
               {canStart ? '🚀 Start the game!' : `Need ${MIN_PLAYERS}+ players…`}
             </button>
           ) : (
-            <div className="card-pop p-4 text-center font-display text-lg font-extrabold text-ink/60">
+            <div
+              data-testid="lobby-waiting"
+              className="card-pop p-4 text-center font-display text-lg font-extrabold text-ink/60"
+            >
               Waiting for the host to start… stretch those psychic muscles 🔮
             </div>
           )}
@@ -101,6 +106,7 @@ function Slider({
   max,
   step = 1,
   suffix = '',
+  testid,
   onChange,
 }: {
   label: string;
@@ -109,6 +115,7 @@ function Slider({
   max: number;
   step?: number;
   suffix?: string;
+  testid?: string;
   onChange: (v: number) => void;
 }) {
   return (
@@ -122,6 +129,7 @@ function Slider({
       </div>
       <input
         type="range"
+        data-testid={testid}
         min={min}
         max={max}
         step={step}

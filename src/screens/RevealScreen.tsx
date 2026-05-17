@@ -74,6 +74,7 @@ export function RevealScreen({ room }: { room: RoomState }) {
             animate={{ scale: 1, rotate: 0 }}
             transition={{ delay: 0.9, type: 'spring', stiffness: 260, damping: 9 }}
             className="card-pop flex flex-col items-center gap-1 p-5 text-center"
+            data-testid="reveal-points"
           >
             <p className="font-display text-5xl font-black text-grape">
               +{points} {points === 4 ? '🎯' : points ? '⭐' : '💨'}

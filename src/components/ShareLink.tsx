@@ -30,7 +30,9 @@ export function ShareLink({ code }: { code: string }) {
     <div className="flex flex-col items-center gap-3">
       <div className="card-pop px-6 py-3 text-center">
         <p className="text-xs font-extrabold uppercase tracking-widest text-ink/50">Room code</p>
-        <p className="font-display text-5xl font-black tracking-[0.2em] text-grape">{code}</p>
+        <p data-testid="room-code" className="font-display text-5xl font-black tracking-[0.2em] text-grape">
+          {code}
+        </p>
       </div>
       {qr && (
         <img

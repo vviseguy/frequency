@@ -65,13 +65,19 @@ export function HomeScreen() {
           </label>
           <input
             className="input-pop"
+            data-testid="name-input"
             value={name}
             maxLength={18}
             onChange={(e) => setName(e.target.value)}
             placeholder="🦊 Fox"
           />
 
-          <button className="btn-primary w-full" disabled={!!busy} onClick={host}>
+          <button
+            className="btn-primary w-full"
+            data-testid="host-btn"
+            disabled={!!busy}
+            onClick={host}
+          >
             {busy === 'host' ? 'Spinning up…' : '✨ Host a new game'}
           </button>
 
@@ -84,6 +90,7 @@ export function HomeScreen() {
           <div className="flex gap-2">
             <input
               className="input-pop text-center font-display text-2xl uppercase tracking-[0.3em]"
+              data-testid="code-input"
               value={code}
               maxLength={4}
               autoCapitalize="characters"
@@ -93,6 +100,7 @@ export function HomeScreen() {
             />
             <button
               className="btn-fun shrink-0"
+              data-testid="join-btn"
               disabled={!!busy || !isValidCode(normalizeCode(code))}
               onClick={() => join(code)}
             >

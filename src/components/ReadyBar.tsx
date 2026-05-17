@@ -30,6 +30,8 @@ export function ReadyBar({ room, myId }: { room: RoomState; myId: string }) {
       </p>
       {amGuesser && (
         <button
+          data-testid="ready-toggle"
+          data-ready={iAmReady}
           className={iAmReady ? 'btn-ghost' : 'btn-fun'}
           onClick={() => {
             playSfx(iAmReady ? 'release' : 'ready');

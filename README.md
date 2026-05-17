@@ -48,6 +48,21 @@ npm run preview  # serve the production build locally
 To test multiplayer locally, open the dev URL in several browser tabs/devices —
 create a room in one, join with the code in the others.
 
+## Tests
+
+```bash
+npm test          # Vitest unit suite (scoring, reducer/state machine, rounds, room codes, migration)
+npm run test:e2e  # Playwright: real multi-peer WebRTC e2e against a local PeerJS broker
+```
+
+The e2e suite spins up its own local PeerJS server (no public broker, fully
+deterministic) and drives three isolated browser contexts through: a complete
+2-round game (host → join → clue → guess → reveal → recap → lobby) and a
+host-migration scenario (kill the host mid-lobby; assert the most-senior player
+takes over and can keep running the game). CI runs both via
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml), separate from the Pages
+deploy so a flaky network never blocks shipping.
+
 ## Networking notes (optional)
 
 P2P uses [PeerJS](https://peerjs.com)'s free public broker for *signaling only*;

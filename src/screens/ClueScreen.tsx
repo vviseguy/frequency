@@ -39,13 +39,19 @@ export function ClueScreen({ room }: { room: RoomState }) {
             <input
               autoFocus
               className="input-pop"
+              data-testid="clue-input"
               placeholder="Your clue (a word or two)…"
               maxLength={60}
               value={clue}
               onChange={(e) => setClue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && clue.trim() && submit()}
             />
-            <button className="btn-primary w-full" disabled={!clue.trim()} onClick={submit}>
+            <button
+              className="btn-primary w-full"
+              data-testid="submit-clue"
+              disabled={!clue.trim()}
+              onClick={submit}
+            >
               📣 Lock in clue
             </button>
           </>

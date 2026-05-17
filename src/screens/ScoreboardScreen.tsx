@@ -47,6 +47,7 @@ export function ScoreboardScreen({ room }: { room: RoomState }) {
           {isHost ? (
             <button
               className="btn-primary w-full text-xl"
+              data-testid="next-round"
               onClick={() => {
                 playSfx('ready');
                 send({ t: 'NEXT_ROUND' });
