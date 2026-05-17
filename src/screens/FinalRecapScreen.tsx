@@ -1,13 +1,15 @@
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
+import { CoopMeter } from '../components/CoopMeter';
 import { Stage } from '../components/Stage';
-import { playerById, type RoomState } from '../game/types';
+import { COOP_TIERS, coopTier, playerById, type RoomState } from '../game/types';
 import { send, useIsHost } from '../hooks/useNet';
 import { playSfx } from '../hooks/useSound';
 import { popConfetti } from '../lib/celebrate';
 
 export function FinalRecapScreen({ room }: { room: RoomState }) {
   const isHost = useIsHost();
+  const coop = room.mode === 'coop';
   const cards = room.history;
   const [step, setStep] = useState(0);
   const finished = step >= cards.length;
@@ -32,6 +34,9 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
       .sort((a, b) => b.score - a.score);
   }, [step, cards, room.players]);
 
+  const teamSoFar = cards.slice(0, step).reduce((n, c) => n + (c.result?.points ?? 0), 0);
+  const maxPossible = cards.length * 4;
+
   useEffect(() => {
     if (finished) {
       playSfx('win');
@@ -47,7 +52,7 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
 
   return (
     <Stage>
-      <div className="flex flex-1 flex-col gap-4 py-4">
+      <div className="flex flex-col gap-4">
         <h2 className="text-center font-display text-4xl font-black">
           {finished ? 'Final Results' : 'The story so far…'}
         </h2>
@@ -70,33 +75,42 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
           </motion.div>
         )}
 
-        <div className="flex flex-col gap-2">
-          {standings.map(({ p, score }, i) => (
-            <motion.div
-              layout
-              key={p.clientId}
-              className="card-pop flex items-center gap-3 p-2"
-              style={{ boxShadow: `4px 4px 0 0 ${p.color}` }}
-            >
-              <span className="w-6 text-center font-display text-xl font-black" style={{ color: 'var(--text-soft)' }}>
-                {finished && i === 0 ? '👑' : i + 1}
-              </span>
-              <span className="text-xl">{p.emoji}</span>
-              <span className="font-display w-20 truncate text-sm font-black">
-                {p.name.replace(/^\p{Emoji}\s*/u, '')}
-              </span>
-              <div className="h-5 flex-1 overflow-hidden rounded-full border-3 border-ink" style={{ background: 'var(--surface)' }}>
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ background: p.color }}
-                  animate={{ width: `${(score / max) * 100}%` }}
-                  transition={{ type: 'spring', stiffness: 120, damping: 18 }}
-                />
-              </div>
-              <span className="font-display w-7 text-right text-lg font-black">{score}</span>
-            </motion.div>
-          ))}
-        </div>
+        {coop ? (
+          <div className="card-pop flex flex-col gap-3 p-5 text-center">
+            <p className="font-display text-lg font-extrabold" style={{ color: 'var(--text-soft)' }}>
+              How in sync was the team?
+            </p>
+            <CoopMeter total={teamSoFar} max={maxPossible} big />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {standings.map(({ p, score }, i) => (
+              <motion.div
+                layout
+                key={p.clientId}
+                className="card-pop flex items-center gap-3 p-2"
+                style={{ boxShadow: `4px 4px 0 0 ${p.color}` }}
+              >
+                <span className="w-6 text-center font-display text-xl font-black" style={{ color: 'var(--text-soft)' }}>
+                  {finished && i === 0 ? '👑' : i + 1}
+                </span>
+                <span className="text-xl">{p.emoji}</span>
+                <span className="font-display w-20 truncate text-sm font-black">
+                  {p.name.replace(/^\p{Emoji}\s*/u, '')}
+                </span>
+                <div className="h-5 flex-1 overflow-hidden rounded-full border-3 border-ink" style={{ background: 'var(--surface)' }}>
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: p.color }}
+                    animate={{ width: `${(score / max) * 100}%` }}
+                    transition={{ type: 'spring', stiffness: 120, damping: 18 }}
+                  />
+                </div>
+                <span className="font-display w-7 text-right text-lg font-black">{score}</span>
+              </motion.div>
+            ))}
+          </div>
+        )}
 
         {finished && (
           <motion.div
@@ -106,14 +120,25 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
             className="card-pop bg-sun p-5 text-center"
             data-testid="champion"
           >
-            <p className="font-display text-xl font-black text-ink">Champion of the Frequency</p>
-            <p className="font-display text-3xl font-black text-grape">
-              {winner?.p.emoji} {winner?.p.name.replace(/^\p{Emoji}\s*/u, '')}!
-            </p>
+            {coop ? (
+              <>
+                <p className="font-display text-xl font-black text-ink">Final verdict</p>
+                <p className="font-display text-3xl font-black text-grape">
+                  {COOP_TIERS[coopTier(teamSoFar, maxPossible)]}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-display text-xl font-black text-ink">Champion of the Frequency</p>
+                <p className="font-display text-3xl font-black text-grape">
+                  {winner?.p.emoji} {winner?.p.name.replace(/^\p{Emoji}\s*/u, '')}!
+                </p>
+              </>
+            )}
           </motion.div>
         )}
 
-        <div className="mt-auto">
+        <div className="mt-2">
           {finished &&
             (isHost ? (
               <button

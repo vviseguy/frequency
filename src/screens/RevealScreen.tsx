@@ -81,9 +81,6 @@ export function RevealScreen({ room }: { room: RoomState }) {
             <p className="font-bold" style={{ color: 'var(--text-soft)' }}>
               {blurb}
             </p>
-            <p className="mt-1 text-sm font-extrabold" style={{ color: 'var(--text-soft)' }}>
-              off by {result?.delta}% — target was {card.target}
-            </p>
           </motion.div>
         )}
 

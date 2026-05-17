@@ -70,3 +70,12 @@ export function rememberRoom(code: string) {
 export function lastRoom(): string | null {
   return localStorage.getItem('freq.lastRoom');
 }
+
+// Remember that we *hosted* a room, so a refresh that can't find the old
+// game can quietly spin up a fresh waiting room instead of dumping home.
+export function markHosted(code: string) {
+  localStorage.setItem('freq.hostedRoom', code);
+}
+export function wasHostOf(code: string): boolean {
+  return localStorage.getItem('freq.hostedRoom') === code;
+}

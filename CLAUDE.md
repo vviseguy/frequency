@@ -42,7 +42,16 @@ CI = `.github/workflows/ci.yml` (build + unit + e2e), separate from
 - **INTRO** is an optional one-card how-to before the first set; host toggles
   it in the lobby (`intro` in `RoomState`, default off). Default off keeps
   tests/e2e flow unchanged.
+- **Modes** (`mode`, default `classic`): `classic` = individual standings
+  (clue-giver scores). `coop` = one team score; moving the dial un-readies
+  everyone (re-approve), and Scoreboard/FinalRecap show a thick 5-tier
+  `CoopMeter` from 0..(clues×4) instead of a ranking.
 - Timers use absolute deadlines so they survive a host handoff.
+- **Toasts**: `toast(msg, kind)` (see `useToast`) — used for errors like a
+  dead room code. `<Toaster/>` renders top-right in app style.
+- **Refresh recovery**: URL keeps `?room=`; on load `HomeScreen` auto-rejoins.
+  If the old game is gone but we *hosted* it (`wasHostOf`), it silently spins
+  up a fresh waiting room instead of erroring.
 
 ## Prompts
 

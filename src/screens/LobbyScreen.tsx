@@ -40,21 +40,34 @@ export function LobbyScreen({ room }: { room: RoomState }) {
             </AnimatePresence>
           </div>
 
-          <div className="mt-1 flex gap-2">
+          <div className="mt-1 flex flex-col gap-2">
             <button
-              className="btn-ghost flex-1 px-3 py-2 text-sm"
+              className="btn-ghost w-full px-3 py-2 text-sm"
               data-testid="topics-btn"
               onClick={() => setShowTopics(true)}
             >
               Topics: {room.packs.length ? `${room.packs.length} packs` : 'All'}
             </button>
             {isHost && (
-              <button
-                className={`flex-1 px-3 py-2 text-sm ${room.intro ? 'btn-fun' : 'btn-ghost'}`}
-                onClick={() => send({ t: 'SET_INTRO', on: !room.intro })}
-              >
-                Intro: {room.intro ? 'on' : 'off'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  className={`flex-1 px-3 py-2 text-sm ${room.mode === 'coop' ? 'btn-fun' : 'btn-ghost'}`}
+                  onClick={() => send({ t: 'SET_MODE', mode: room.mode === 'coop' ? 'classic' : 'coop' })}
+                >
+                  {room.mode === 'coop' ? 'Co-op 🤝' : 'Classic 🏆'}
+                </button>
+                <button
+                  className={`flex-1 px-3 py-2 text-sm ${room.intro ? 'btn-fun' : 'btn-ghost'}`}
+                  onClick={() => send({ t: 'SET_INTRO', on: !room.intro })}
+                >
+                  Intro: {room.intro ? 'on' : 'off'}
+                </button>
+              </div>
+            )}
+            {!isHost && (
+              <p className="text-center text-xs font-extrabold" style={{ color: 'var(--text-soft)' }}>
+                Mode: {room.mode === 'coop' ? 'Co-op 🤝' : 'Classic 🏆'}
+              </p>
             )}
           </div>
         </div>

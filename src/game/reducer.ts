@@ -31,6 +31,7 @@ export function freshRoom(code: string, ownerClientId: string): RoomState {
     phase: 'LOBBY',
     players: [],
     ownerClientId,
+    mode: 'classic',
     intro: false,
     packs: [],
     setsTarget: 3,
@@ -181,6 +182,11 @@ export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): R
       return { ...state, intro: intent.on, updatedAt: ctx.now };
     }
 
+    case 'SET_MODE': {
+      if (from !== state.ownerClientId || state.phase !== 'LOBBY') return state;
+      return { ...state, mode: intent.mode, updatedAt: ctx.now };
+    }
+
     case 'START_GAME': {
       if (from !== state.ownerClientId || state.phase !== 'LOBBY') return state;
       const connected = state.players.filter((p) => p.connected);
@@ -222,7 +228,11 @@ export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): R
       const card = currentCard(state);
       if (!s || state.phase !== 'GUESS' || !card || from === card.ownerClientId) return state;
       if (card.dial.draggerId && card.dial.draggerId !== from) return state;
-      return patchCard(state, s, { dial: { value: clamp(intent.value), draggerId: from } });
+      const value = clamp(intent.value);
+      // co-op: moving the dial un-readies everyone (they must re-approve)
+      const moved = value !== card.dial.value;
+      const ready = state.mode === 'coop' && moved ? {} : card.ready;
+      return patchCard(state, s, { dial: { value, draggerId: from }, ready });
     }
     case 'DIAL_RELEASE': {
       const card = currentCard(state);

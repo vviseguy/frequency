@@ -3,15 +3,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Logo, Stage } from '../components/Stage';
 import { netCtl } from '../hooks/useNet';
 import { unlockAudio, playSfx } from '../hooks/useSound';
-import { getSavedName, lastRoom, rememberRoom, saveName } from '../lib/identity';
-import { useNetStore } from '../net/netStore';
+import { toast } from '../hooks/useToast';
+import { getSavedName, lastRoom, rememberRoom, saveName, wasHostOf } from '../lib/identity';
 import { isValidCode, normalizeCode, roomFromUrl } from '../net/roomCode';
 
 export function HomeScreen() {
   const [name, setName] = useState(getSavedName());
   const [code, setCode] = useState(roomFromUrl() ?? '');
   const [busy, setBusy] = useState<'host' | 'join' | null>(null);
-  const error = useNetStore((s) => s.error);
   const prefilled = !!roomFromUrl();
   const previous = lastRoom();
 
@@ -26,7 +25,7 @@ export function HomeScreen() {
     setBusy('host');
     try {
       const c = await netCtl.createRoom(name.trim() || '🎈 Player');
-      rememberRoom(c);
+      if (c) rememberRoom(c);
     } catch {
       setBusy(null);
     }
@@ -42,12 +41,18 @@ export function HomeScreen() {
       rememberRoom(cc);
     } catch {
       setBusy(null);
+      if (wasHostOf(cc)) {
+        // we created that room before — its code is gone, so just open a
+        // fresh waiting room and keep the party going
+        toast('That game ended — started you a fresh room.', 'info');
+        host();
+      } else {
+        toast(`No game found for "${cc}". Double-check the code?`);
+      }
     }
   };
 
-  // If the URL still has ?room= (e.g. a refresh — including the host's),
-  // reconnect to that game automatically. clientId persists, so you
-  // reclaim your slot.
+  // A refresh that still has ?room= (incl. the host's) auto-rejoins.
   const autoTried = useRef(false);
   useEffect(() => {
     const fromUrl = roomFromUrl();
@@ -60,20 +65,26 @@ export function HomeScreen() {
 
   return (
     <Stage>
-      <div className="flex flex-1 flex-col justify-center gap-6 py-8">
+      <div className="flex flex-col gap-6">
         <motion.div
           initial={{ scale: 0.5, opacity: 0, rotate: -8 }}
           animate={{ scale: 1, opacity: 1, rotate: 0 }}
           transition={{ type: 'spring', stiffness: 200, damping: 12 }}
         >
           <Logo />
-          <p className="mt-2 text-center font-display text-lg font-extrabold text-ink/60">
+          <p
+            className="mt-3 text-center font-display text-lg font-extrabold"
+            style={{ color: 'var(--text-soft)' }}
+          >
             Read the room. Move the dial. Be telepathic.
           </p>
         </motion.div>
 
         <div className="card-pop flex flex-col gap-4 p-5">
-          <label className="font-display text-sm font-extrabold uppercase tracking-wide text-ink/50">
+          <label
+            className="font-display text-sm font-extrabold uppercase tracking-wide"
+            style={{ color: 'var(--text-soft)' }}
+          >
             Your name
           </label>
           <input
@@ -94,10 +105,10 @@ export function HomeScreen() {
             {busy === 'host' ? 'Spinning up…' : 'Host a new game'}
           </button>
 
-          <div className="flex items-center gap-3 text-ink/40">
-            <span className="h-0.5 flex-1 bg-ink/20" />
+          <div className="flex items-center gap-3" style={{ color: 'var(--text-soft)' }}>
+            <span className="h-0.5 flex-1" style={{ background: 'var(--text-soft)' }} />
             <span className="font-display text-sm font-extrabold">OR JOIN</span>
-            <span className="h-0.5 flex-1 bg-ink/20" />
+            <span className="h-0.5 flex-1" style={{ background: 'var(--text-soft)' }} />
           </div>
 
           <div className="flex gap-2">
@@ -117,24 +128,30 @@ export function HomeScreen() {
               disabled={!!busy || !isValidCode(normalizeCode(code))}
               onClick={() => join(code)}
             >
-              {busy === 'join' ? '…' : 'Go →'}
+              {busy === 'join' ? '…' : 'Go'}
             </button>
           </div>
 
-          {prefilled && (
+          {prefilled && busy === 'join' && (
             <p className="text-center text-sm font-bold text-grape">
-              You were invited to room {normalizeCode(code)} — enter a name and tap Go!
+              Reconnecting to {normalizeCode(code)}…
             </p>
           )}
           {previous && !prefilled && (
-            <button className="text-center text-sm font-extrabold text-ink/50 underline" onClick={() => join(previous)}>
+            <button
+              className="text-center text-sm font-extrabold underline"
+              style={{ color: 'var(--text-soft)' }}
+              onClick={() => join(previous)}
+            >
               Rejoin your last room ({previous})
             </button>
           )}
-          {error && <p className="text-center text-sm font-extrabold text-coral">{error}</p>}
         </div>
 
-        <p className="px-4 text-center text-xs font-bold text-ink/40">
+        <p
+          className="px-4 text-center text-xs font-bold"
+          style={{ color: 'var(--text-soft)' }}
+        >
           Peer-to-peer & server-free. 2+ players, best with 4–8. Works great on phones.
         </p>
       </div>

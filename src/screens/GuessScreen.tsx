@@ -47,6 +47,7 @@ export function GuessScreen({ room }: { room: RoomState }) {
             leftLabel={card.prompt.left}
             rightLabel={card.prompt.right}
             draggerName={someoneElse ? dragger!.name.replace(/^\p{Emoji}\s*/u, '') : null}
+            draggerEmoji={dragger?.emoji}
             draggerColor={dragger?.color ?? '#7C5CFF'}
             onGrab={() => send({ t: 'DIAL_GRAB' })}
             onChange={pushMove}

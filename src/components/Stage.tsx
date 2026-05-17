@@ -29,7 +29,13 @@ export function Stage({ children, focus = false }: { children: ReactNode; focus?
             <RoomCode />
           </header>
 
-          <main className="flex flex-1 flex-col justify-center pb-6">{children}</main>
+          {/* my-auto centres short screens but never clips tall ones */}
+          <main
+            className="flex flex-1 flex-col"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.25rem)' }}
+          >
+            <div className="my-auto flex w-full flex-col">{children}</div>
+          </main>
         </div>
       </div>
     </div>

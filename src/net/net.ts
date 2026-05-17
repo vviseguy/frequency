@@ -5,7 +5,8 @@ import type Peer from 'peerjs';
 import { useGameStore } from '../game/gameStore';
 import { loadPrompts } from '../game/prompts';
 import type { RoomState } from '../game/types';
-import { getClientId } from '../lib/identity';
+import { toast } from '../hooks/useToast';
+import { getClientId, markHosted } from '../lib/identity';
 import { HostServer } from './hostServer';
 import {
   HOST_DEAD_MS,
@@ -53,16 +54,19 @@ class Net {
         this.generation = 0;
         this.startHost(prompts, undefined);
         net().set({ status: 'connected', code, myClientId: this.myId });
+        markHosted(code);
         syncUrl(code);
         this.armWatch();
         return code;
       } catch (e) {
         if ((e as { type?: string })?.type === 'unavailable-id') continue; // code clash
-        net().set({ status: 'error', error: 'Could not reach the matchmaking broker. Try again.' });
+        net().set({ status: 'error', error: null });
+        toast('Could not reach the matchmaking broker. Try again.');
         throw e;
       }
     }
-    net().set({ status: 'error', error: 'Could not create a room. Try again.' });
+    net().set({ status: 'error', error: null });
+    toast('Could not create a room. Try again.');
     throw new Error('room-create-failed');
   }
 
@@ -73,9 +77,10 @@ class Net {
     this.stopped = false;
     await loadPrompts();
     net().set({ status: 'connecting', role: 'peer', code, error: null, myClientId: this.myId });
-    const ok = await this.connectToHost(0, 4);
+    // fast first attempt so a dead code fails quickly
+    const ok = await this.connectToHost(0, 2, 1000, 2);
     if (!ok) {
-      net().set({ status: 'error', error: `No room "${code}" found. Check the code?` });
+      net().set({ status: 'idle', error: null });
       throw new Error('join-failed');
     }
     syncUrl(code);
@@ -124,20 +129,26 @@ class Net {
   // ---- peer ----------------------------------------------------------
 
   /** Probe the generation ladder until a host answers with WELCOME. */
-  private async connectToHost(fromGen: number, rounds: number): Promise<boolean> {
+  private async connectToHost(
+    fromGen: number,
+    rounds: number,
+    perTryMs = 1600,
+    maxSpan?: number,
+  ): Promise<boolean> {
     for (let r = 0; r < rounds && !this.stopped; r++) {
-      for (const gen of ladder(fromGen)) {
-        const conn = await this.tryConnect(hostPeerId(this.code, gen));
+      const gens = maxSpan != null ? ladder(fromGen).slice(0, maxSpan + 1) : ladder(fromGen);
+      for (const gen of gens) {
+        const conn = await this.tryConnect(hostPeerId(this.code, gen), perTryMs);
         if (!conn) continue;
         const adopted = await this.adopt(conn);
         if (adopted) return true;
       }
-      await wait(500);
+      await wait(350);
     }
     return false;
   }
 
-  private tryConnect(peerId: string): Promise<DataConnection | null> {
+  private tryConnect(peerId: string, timeoutMs = 1600): Promise<DataConnection | null> {
     return new Promise(async (resolve) => {
       if (!this.peer || this.peer.destroyed) {
         try {
@@ -154,7 +165,7 @@ class Net {
           /* noop */
         }
         resolve(null);
-      }, 1600);
+      }, timeoutMs);
       conn.on('open', () => {
         clearTimeout(timer);
         resolve(conn);

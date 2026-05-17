@@ -77,9 +77,12 @@ export function MemphisBackground({ motion = 'lazy' }: { motion?: 'lazy' | 'stil
   const [vw, setVw] = useState(() => (typeof window === 'undefined' ? 1280 : window.innerWidth));
   const [vh, setVh] = useState(() => (typeof window === 'undefined' ? 800 : window.innerHeight));
   useEffect(() => {
+    // Only relayout on a *real* size change. Mobile address-bar show/hide
+    // and tab refocus fire resize with tiny deltas — ignoring those keeps
+    // the background from jumping/reshuffling.
     const on = () => {
-      setVw(window.innerWidth);
-      setVh(window.innerHeight);
+      setVw((w) => (Math.abs(window.innerWidth - w) > 60 ? window.innerWidth : w));
+      setVh((h) => (Math.abs(window.innerHeight - h) > 160 ? window.innerHeight : h));
     };
     window.addEventListener('resize', on);
     return () => window.removeEventListener('resize', on);
@@ -131,7 +134,11 @@ export function MemphisBackground({ motion = 'lazy' }: { motion?: 'lazy' | 'stil
   }, [vw, vh]);
 
   return (
-    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
+    <div
+      className="pointer-events-none fixed left-0 top-0 -z-10 overflow-hidden"
+      style={{ width: vw, height: vh }}
+      aria-hidden
+    >
       {items.map((it) => (
         <div
           key={it.key}

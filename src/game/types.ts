@@ -71,6 +71,7 @@ export interface RoomState {
   phase: Phase;
   players: Player[]; // append-only join order = seniority
   ownerClientId: string;
+  mode: 'classic' | 'coop'; // coop = one shared score, re-approve after moves
   intro: boolean; // show the brief how-to-play before the first set
   packs: string[]; // selected topic pack ids; [] means "all topics"
   setsTarget: number; // clues each person gives — auto-sized at game start
@@ -107,6 +108,21 @@ export function seniorPlayer(players: Player[]): Player | undefined {
 
 export function playerById(state: RoomState, id: string): Player | undefined {
   return state.players.find((p) => p.clientId === id);
+}
+
+// Co-op performance tiers, low -> high.
+export const COOP_TIERS = [
+  'Total static 📻',
+  'Faint signal',
+  'Tuning in',
+  'On the same wave',
+  'Pure telepathy ✨',
+];
+
+/** Map a team score to one of 5 tiers (0..4). */
+export function coopTier(total: number, max: number): number {
+  if (max <= 0) return 0;
+  return Math.max(0, Math.min(4, Math.floor((total / max) * 5)));
 }
 
 export function currentCard(state: RoomState): ClueCard | null {

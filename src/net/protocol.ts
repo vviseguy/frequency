@@ -20,6 +20,7 @@ export type C2H =
   | { t: 'NEXT_ROUND' }
   | { t: 'PLAY_AGAIN' }
   | { t: 'SET_INTRO'; on: boolean }
+  | { t: 'SET_MODE'; mode: 'classic' | 'coop' }
   | { t: 'SET_PACKS'; packs: string[] }
   | { t: 'RENAME'; name: string }
   | { t: 'REACTION'; emoji: string }

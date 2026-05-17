@@ -165,6 +165,24 @@ describe('sets & end of game', () => {
   });
 });
 
+describe('co-op mode', () => {
+  it('SET_MODE is host+lobby only; moving the dial un-readies everyone', () => {
+    let s = reduce(lobby(), 'host', { t: 'SET_MODE', mode: 'coop' }, ctx());
+    expect(s.mode).toBe('coop');
+    expect(reduce(s, 'p2', { t: 'SET_MODE', mode: 'classic' }, ctx()).mode).toBe('coop');
+
+    s = reduce(s, 'host', { t: 'START_GAME' }, ctx());
+    for (const id of ['host', 'p2', 'p3']) s = reduce(s, id, { t: 'SUBMIT_CLUE', clue: 'x' }, ctx());
+    expect(s.phase).toBe('GUESS'); // card owner = host; guessers p2, p3
+
+    s = reduce(s, 'p2', { t: 'SET_READY', ready: true }, ctx());
+    expect(currentCard(s)!.ready.p2).toBe(true);
+    s = reduce(s, 'p3', { t: 'DIAL_MOVE', value: 77 }, ctx());
+    expect(currentCard(s)!.dial.value).toBe(77);
+    expect(currentCard(s)!.ready).toEqual({}); // p2 booted from "good to go"
+  });
+});
+
 describe('presence', () => {
   it('hands the crown to the most senior player when the owner leaves', () => {
     let s = setConnected(lobby(), 'host', false);
