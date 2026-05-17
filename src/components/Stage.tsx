@@ -5,9 +5,9 @@ import { MemphisBackground } from './memphis/Decor';
 
 /**
  * Mobile-first frame. The document doesn't scroll — this inner container
- * does — so the fixed Memphis backdrop never jumps on phones. A blurred
- * scrim always calms the background; in `focus` mode it also freezes.
- * Content is vertically centred so the title never hugs the top.
+ * does (only when content truly overflows, mostly on small phones). The
+ * menu / room-code buttons hang in the real viewport corners; the app body
+ * stays a centred narrow column.
  */
 export function Stage({ children, focus = false }: { children: ReactNode; focus?: boolean }) {
   return (
@@ -19,23 +19,25 @@ export function Stage({ children, focus = false }: { children: ReactNode; focus?
         aria-hidden
       />
 
-      <div className="relative h-full overflow-y-auto overflow-x-hidden">
-        <div className="mx-auto flex min-h-full w-full max-w-md flex-col px-5 sm:px-7">
-          <header
-            className="sticky top-0 z-50 flex items-center justify-between gap-3"
-            style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.85rem)', paddingBottom: '0.6rem' }}
-          >
-            <Menu />
-            <RoomCode />
-          </header>
+      {/* corner buttons — anchored to the screen, not the column */}
+      <div
+        className="fixed left-0 right-0 top-0 z-50 flex items-start justify-between px-2"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.6rem)' }}
+      >
+        <Menu />
+        <RoomCode />
+      </div>
 
+      <div className="relative h-full overflow-y-auto overflow-x-hidden">
+        <div
+          className="mx-auto flex min-h-full w-full max-w-md flex-col px-4"
+          style={{
+            paddingTop: 'calc(env(safe-area-inset-top) + 4rem)',
+            paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.25rem)',
+          }}
+        >
           {/* my-auto centres short screens but never clips tall ones */}
-          <main
-            className="flex flex-1 flex-col"
-            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.25rem)' }}
-          >
-            <div className="my-auto flex w-full flex-col">{children}</div>
-          </main>
+          <div className="my-auto flex w-full flex-col">{children}</div>
         </div>
       </div>
     </div>

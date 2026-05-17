@@ -95,9 +95,11 @@ export function Menu() {
               animate={{ scale: 1, x: 0, opacity: 1 }}
               exit={{ scale: 0, x: -16, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 380, damping: 18 }}
-              className="flex w-full items-center gap-3 rounded-full border-3 border-ink bg-white py-2 pl-3 pr-4 shadow-pop-sm"
+              className="flex w-full items-center gap-2 rounded-full border-3 border-ink bg-white py-2 pl-2 pr-4 shadow-pop-sm"
             >
-              <Volume2 size={16} strokeWidth={2.5} className="shrink-0" />
+              <span className="grid h-7 w-7 shrink-0 place-items-center">
+                <Volume2 size={18} strokeWidth={2.5} />
+              </span>
               <input
                 type="range"
                 min={0}

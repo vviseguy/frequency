@@ -12,5 +12,5 @@ test('home screen renders and a room can be hosted', async ({ page }) => {
   expect(await phaseOf(page)).toBe('LOBBY');
   await expect(page.getByTestId('phase')).toHaveAttribute('data-role', 'host');
   await expect(page.getByTestId('start-btn')).toBeVisible();
-  await expect(page.getByText('Share invite')).toBeVisible();
+  await expect(page.getByTestId('room-code')).toHaveText(code);
 });

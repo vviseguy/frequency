@@ -15,17 +15,18 @@ function gun(): confetti.CreateTypes {
   return fire;
 }
 
-/** Bursts from the bottom corners (never dead-centre). */
+/** Bursts in from the upper sides + a top shower (never bottom-centre). */
 export function popConfetti(power: 'small' | 'big' | 'huge' = 'big') {
   const f = gun();
   const n = power === 'small' ? 30 : power === 'big' ? 70 : 120;
-  const v = power === 'huge' ? 55 : 42;
-  f({ particleCount: n, angle: 60, spread: 65, startVelocity: v, origin: { x: 0, y: 1 }, colors: MEMPHIS, scalar: 1.1 });
-  f({ particleCount: n, angle: 120, spread: 65, startVelocity: v, origin: { x: 1, y: 1 }, colors: MEMPHIS, scalar: 1.1 });
+  const v = power === 'huge' ? 50 : 40;
+  // from the two upper sides, arcing inward
+  f({ particleCount: n, angle: 300, spread: 70, startVelocity: v, origin: { x: 0, y: 0.3 }, colors: MEMPHIS, scalar: 1.1 });
+  f({ particleCount: n, angle: 240, spread: 70, startVelocity: v, origin: { x: 1, y: 0.3 }, colors: MEMPHIS, scalar: 1.1 });
   if (power === 'huge') {
     setTimeout(() => {
-      f({ particleCount: 70, angle: 70, spread: 80, origin: { x: 0, y: 0.9 }, colors: MEMPHIS });
-      f({ particleCount: 70, angle: 110, spread: 80, origin: { x: 1, y: 0.9 }, colors: MEMPHIS });
+      // a gentle shower from the top
+      f({ particleCount: 90, angle: 270, spread: 120, startVelocity: 30, origin: { x: 0.5, y: 0 }, colors: MEMPHIS, scalar: 1.1 });
     }, 220);
   }
 }

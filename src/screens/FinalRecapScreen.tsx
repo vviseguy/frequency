@@ -47,7 +47,19 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
   }, [finished]);
 
   const max = Math.max(1, ...standings.map((s) => s.score));
-  const winner = standings[0];
+  const topScore = standings[0]?.score ?? 0;
+  const winners = standings.filter((s) => s.score === topScore && topScore > 0);
+  const title = useMemo(() => {
+    const t = [
+      'On the same wavelength',
+      'Certified mind-reader',
+      'Big brain energy',
+      'Frequency royalty',
+      'Dialed in',
+      'Telepathy unlocked',
+    ];
+    return t[Math.floor(Math.random() * t.length)];
+  }, []);
   const cur = cards[step];
 
   return (
@@ -127,11 +139,30 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
                   {COOP_TIERS[coopTier(teamSoFar, maxPossible)]}
                 </p>
               </>
+            ) : winners.length === 0 ? (
+              <>
+                <p className="font-display text-xl font-black text-ink">Well… that happened</p>
+                <p className="font-display text-3xl font-black text-grape">
+                  Totally crossed wires 📡
+                </p>
+              </>
+            ) : winners.length === 1 ? (
+              <>
+                <p className="font-display text-xl font-black text-ink">{title}</p>
+                <p className="font-display text-3xl font-black text-grape">
+                  {winners[0].p.emoji} {winners[0].p.name.replace(/^\p{Emoji}\s*/u, '')}!
+                </p>
+              </>
             ) : (
               <>
-                <p className="font-display text-xl font-black text-ink">Champion of the Frequency</p>
-                <p className="font-display text-3xl font-black text-grape">
-                  {winner?.p.emoji} {winner?.p.name.replace(/^\p{Emoji}\s*/u, '')}!
+                <p className="font-display text-xl font-black text-ink">
+                  It’s a {winners.length}-way tie!
+                </p>
+                <p className="font-display text-2xl font-black text-grape">
+                  {winners
+                    .map((w) => w.p.name.replace(/^\p{Emoji}\s*/u, ''))
+                    .join(' & ')}{' '}
+                  🤝
                 </p>
               </>
             )}

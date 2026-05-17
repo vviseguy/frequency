@@ -35,7 +35,6 @@ test('full game: simultaneous clues, cycle, recap, back to lobby', async ({ brow
 
   await waitAllPhase(pages, 'FINAL_RECAP');
   await expect(host.getByTestId('champion')).toBeVisible({ timeout: 25_000 });
-  await expect(host.getByText('Champion of the Frequency')).toBeVisible();
 
   await host.getByTestId('play-again').click();
   await waitAllPhase(pages, 'LOBBY');

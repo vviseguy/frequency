@@ -65,37 +65,30 @@ export function HomeScreen() {
 
   return (
     <Stage>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-5">
         <motion.div
-          initial={{ scale: 0.5, opacity: 0, rotate: -8 }}
+          initial={{ scale: 0.6, opacity: 0, rotate: -6 }}
           animate={{ scale: 1, opacity: 1, rotate: 0 }}
           transition={{ type: 'spring', stiffness: 200, damping: 12 }}
         >
           <Logo />
           <p
-            className="mt-3 text-center font-display text-lg font-extrabold"
+            className="mt-2 text-center font-display text-base font-extrabold"
             style={{ color: 'var(--text-soft)' }}
           >
-            Read the room. Move the dial. Be telepathic.
+            Read the room. Move the dial.
           </p>
         </motion.div>
 
-        <div className="card-pop flex flex-col gap-4 p-5">
-          <label
-            className="font-display text-sm font-extrabold uppercase tracking-wide"
-            style={{ color: 'var(--text-soft)' }}
-          >
-            Your name
-          </label>
+        <div className="card-pop flex flex-col gap-3 p-5">
           <input
             className="input-pop"
             data-testid="name-input"
             value={name}
             maxLength={18}
             onChange={(e) => setName(e.target.value)}
-            placeholder="🦊 Fox"
+            placeholder="Your name"
           />
-
           <button
             className="btn-primary w-full"
             data-testid="host-btn"
@@ -105,9 +98,9 @@ export function HomeScreen() {
             {busy === 'host' ? 'Spinning up…' : 'Host a new game'}
           </button>
 
-          <div className="flex items-center gap-3" style={{ color: 'var(--text-soft)' }}>
+          <div className="my-1 flex items-center gap-3" style={{ color: 'var(--text-soft)' }}>
             <span className="h-0.5 flex-1" style={{ background: 'var(--text-soft)' }} />
-            <span className="font-display text-sm font-extrabold">OR JOIN</span>
+            <span className="font-display text-xs font-extrabold">OR JOIN</span>
             <span className="h-0.5 flex-1" style={{ background: 'var(--text-soft)' }} />
           </div>
 
@@ -147,13 +140,6 @@ export function HomeScreen() {
             </button>
           )}
         </div>
-
-        <p
-          className="px-4 text-center text-xs font-bold"
-          style={{ color: 'var(--text-soft)' }}
-        >
-          Peer-to-peer & server-free. 2+ players, best with 4–8. Works great on phones.
-        </p>
       </div>
     </Stage>
   );
