@@ -1,6 +1,8 @@
 // Listens to the shared reaction stream: every reaction pops a sound and
 // sends a burst of that emoji floating up across everyone's background.
 import { useEffect, useRef, useState } from 'react';
+import { reactionBudget } from '../game/types';
+import { useRoom } from '../hooks/useNet';
 import { playSfx } from '../hooks/useSound';
 import { useNetStore } from '../net/netStore';
 
@@ -15,6 +17,9 @@ interface Floater {
 
 export function FloatingEmojis() {
   const reactions = useNetStore((s) => s.reactions);
+  const room = useRoom();
+  // 3 copies per click in small rooms, 2 medium, 1 large -> never floods
+  const perClick = reactionBudget(room?.setsTarget ?? 3);
   const seen = useRef(new Set<number>());
   const [floaters, setFloaters] = useState<Floater[]>([]);
 
@@ -23,7 +28,7 @@ export function FloatingEmojis() {
       if (seen.current.has(r.id)) continue;
       seen.current.add(r.id);
       playSfx('pop');
-      const burst: Floater[] = Array.from({ length: 4 }, (_, i) => ({
+      const burst: Floater[] = Array.from({ length: perClick }, (_, i) => ({
         key: `${r.id}-${i}`,
         emoji: r.emoji,
         left: 8 + Math.random() * 84,

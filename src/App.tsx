@@ -8,6 +8,7 @@ import { ClueScreen } from './screens/ClueScreen';
 import { FinalRecapScreen } from './screens/FinalRecapScreen';
 import { GuessScreen } from './screens/GuessScreen';
 import { HomeScreen } from './screens/HomeScreen';
+import { IntroScreen } from './screens/IntroScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { RevealScreen } from './screens/RevealScreen';
 import { ScoreboardScreen } from './screens/ScoreboardScreen';
@@ -29,6 +30,8 @@ export default function App() {
         <HomeScreen />
       ) : room.phase === 'LOBBY' ? (
         <LobbyScreen room={room} />
+      ) : room.phase === 'INTRO' ? (
+        <IntroScreen />
       ) : room.phase === 'CLUE' ? (
         <ClueScreen room={room} />
       ) : room.phase === 'GUESS' ? (

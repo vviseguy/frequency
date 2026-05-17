@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { Crown } from 'lucide-react';
 import type { Player } from '../game/types';
 
 export function PlayerChip({
@@ -28,8 +29,10 @@ export function PlayerChip({
       <span className="text-lg leading-none">{player.emoji}</span>
       <span className="font-display max-w-[8rem] truncate">{name}</span>
       {isYou && <span className="rounded-full bg-grape px-1.5 text-[10px] font-black text-white">YOU</span>}
-      {isHost && <span title="Host" className="text-base">👑</span>}
-      {isPsychic && <span title="Psychic" className="text-base">🔮</span>}
+      {isHost && <Crown size={16} strokeWidth={2.5} className="text-tangerine" aria-label="host" />}
+      {isPsychic && (
+        <span className="rounded-full bg-grape px-1.5 text-[10px] font-black text-white">CLUE</span>
+      )}
       {!player.connected && <span className="text-[10px] font-black text-ink/50">offline</span>}
       {showScore && (
         <span className="font-display ml-1 rounded-full bg-ink px-2 text-sm font-black text-white">

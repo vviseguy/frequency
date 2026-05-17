@@ -13,7 +13,7 @@ export function ScoreboardScreen({ room }: { room: RoomState }) {
     <Stage>
       <div className="flex flex-1 flex-col gap-5 py-4">
         <h2 className="text-center font-display text-4xl font-black">
-          📊 Scoreboard
+          Scoreboard
           <span className="block text-base font-extrabold" style={{ color: 'var(--text-soft)' }}>
             Set {room.setsDone}/{room.setsTarget} complete
           </span>
@@ -53,7 +53,7 @@ export function ScoreboardScreen({ room }: { room: RoomState }) {
                 send({ t: 'NEXT_ROUND' });
               }}
             >
-              {last ? '🏆 See final results!' : '▶ Next set of clues'}
+              {last ? 'See final results' : 'Next set of clues'}
             </button>
           ) : (
             <div

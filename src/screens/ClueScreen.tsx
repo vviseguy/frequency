@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import { useState } from 'react';
 import { Dial } from '../components/Dial';
 import { Stage } from '../components/Stage';
@@ -24,7 +25,6 @@ export function ClueScreen({ room }: { room: RoomState }) {
 
         {!myCard ? (
           <div className="card-pop flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-            <div className="animate-wiggle text-5xl">🍿</div>
             <p className="font-display text-xl font-black">You joined mid-set</p>
             <p className="font-bold" style={{ color: 'var(--text-soft)' }}>
               Sit this one out — you’re in next set.
@@ -32,7 +32,7 @@ export function ClueScreen({ room }: { room: RoomState }) {
           </div>
         ) : submitted ? (
           <div className="card-pop flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-            <div className="text-6xl">✅</div>
+            <Check size={56} strokeWidth={3} className="text-lime" />
             <p className="font-display text-2xl font-black">Clue locked in!</p>
             <p className="card-pop px-4 py-2 font-display text-lg font-extrabold text-grape">
               “{myCard.clue}”
@@ -50,7 +50,7 @@ export function ClueScreen({ room }: { room: RoomState }) {
               className="card-pop p-3 text-center font-display font-extrabold text-grape"
               style={{ background: 'color-mix(in srgb, #7C5CFF 12%, var(--surface))' }}
             >
-              🤫 Only you see your target. Nail a clue that lands the dial there!
+              Only you see your target. Nail a clue that lands the dial there!
             </div>
             <div className="card-pop p-3">
               <Dial
@@ -78,7 +78,7 @@ export function ClueScreen({ room }: { room: RoomState }) {
               disabled={!clue.trim()}
               onClick={submit}
             >
-              📣 Lock in clue ({done}/{total} in)
+              Lock in clue ({done}/{total} in)
             </button>
           </>
         )}

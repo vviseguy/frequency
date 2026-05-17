@@ -1,7 +1,7 @@
-// Memphis decorative layer. Layout is seeded per-client (persisted) so it
-// stays roughly the same across reloads but differs between people. Density
-// scales with the viewport. Motion is phase-aware: lazy drift while waiting,
-// frozen during focused play so the screen isn't busy.
+// Memphis decorative layer. Shapes are laid out on a jittered grid so they
+// spread evenly and don't overlap, with kinds/colours interleaved (no
+// clumps of the same shape). Seeded per-client (persisted) so the layout is
+// stable across reloads but differs between people. Motion is phase-aware.
 import { useEffect, useMemo, useState } from 'react';
 
 const COLORS = ['#7C5CFF', '#FF8FD6', '#FF9F45', '#9BE564', '#5BC8FF', '#FFD93D', '#FF6B6B'];
@@ -87,19 +87,42 @@ export function MemphisBackground({ motion = 'lazy' }: { motion?: 'lazy' | 'stil
 
   const items = useMemo(() => {
     const rnd = mulberry32(clientSeed());
-    // density-driven: ~1 shape per 22k px², clamped
-    const count = Math.max(18, Math.min(70, Math.round((vw * vh) / 22000)));
-    return Array.from({ length: count }, (_, i) => ({
-      kind: KINDS[Math.floor(rnd() * KINDS.length)],
-      color: COLORS[Math.floor(rnd() * COLORS.length)],
-      top: rnd() * 96,
-      left: rnd() * 96,
-      size: 38 + rnd() * 78,
-      delay: rnd() * 8,
-      duration: 16 + rnd() * 16, // slow & lazy
-      rotate: Math.floor(rnd() * 360),
-      key: i,
-    }));
+    const aspect = vw / vh;
+    const target = Math.max(14, Math.min(54, Math.round((vw * vh) / 30000)));
+    const cols = Math.max(2, Math.round(Math.sqrt(target * aspect)));
+    const rows = Math.max(2, Math.ceil(target / cols));
+    const cellW = 100 / cols;
+    const cellH = 100 / rows;
+    const cellMinPx = Math.min((cellW / 100) * vw, (cellH / 100) * vh);
+
+    // visit cells in a shuffled order and cycle kinds/colours so the same
+    // shape never clumps together
+    const cells: number[] = [];
+    for (let i = 0; i < cols * rows; i++) cells.push(i);
+    for (let i = cells.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [cells[i], cells[j]] = [cells[j], cells[i]];
+    }
+
+    return cells.map((cell, n) => {
+      const col = cell % cols;
+      const row = Math.floor(cell / cols);
+      // keep shapes comfortably inside their cell -> no overlap
+      const jx = (rnd() - 0.5) * cellW * 0.5;
+      const jy = (rnd() - 0.5) * cellH * 0.5;
+      const size = cellMinPx * (0.34 + rnd() * 0.2);
+      return {
+        kind: KINDS[n % KINDS.length],
+        color: COLORS[(n * 3 + 1) % COLORS.length],
+        left: (col + 0.5) * cellW + jx,
+        top: (row + 0.5) * cellH + jy,
+        size,
+        delay: rnd() * 8,
+        duration: 16 + rnd() * 16,
+        rotate: Math.floor(rnd() * 360),
+        key: cell,
+      };
+    });
   }, [vw, vh]);
 
   return (
@@ -107,12 +130,14 @@ export function MemphisBackground({ motion = 'lazy' }: { motion?: 'lazy' | 'stil
       {items.map((it) => (
         <div
           key={it.key}
-          className={`absolute opacity-70 ${motion === 'lazy' ? 'animate-drift' : ''}`}
+          className={`absolute opacity-60 ${motion === 'lazy' ? 'animate-drift' : ''}`}
           style={{
             top: `${it.top}%`,
             left: `${it.left}%`,
             width: it.size,
             height: it.size,
+            marginLeft: -it.size / 2,
+            marginTop: -it.size / 2,
             animationDelay: `${it.delay}s`,
             animationDuration: `${it.duration}s`,
             transform: `rotate(${it.rotate}deg)`,

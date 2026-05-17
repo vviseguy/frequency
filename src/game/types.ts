@@ -8,6 +8,7 @@
 
 export type Phase =
   | 'LOBBY'
+  | 'INTRO' // optional brief how-to-play before the first set
   | 'CLUE' // everyone writes their clue simultaneously
   | 'GUESS' // the group guesses the current player's clue
   | 'REVEAL' // target + score for the current clue
@@ -70,6 +71,7 @@ export interface RoomState {
   phase: Phase;
   players: Player[]; // append-only join order = seniority
   ownerClientId: string;
+  intro: boolean; // show the brief how-to-play before the first set
   packs: string[]; // selected topic pack ids; [] means "all topics"
   setsTarget: number; // clues each person gives — auto-sized at game start
   setsDone: number;

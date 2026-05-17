@@ -62,7 +62,7 @@ export function GuessScreen({ room }: { room: RoomState }) {
             className="card-pop p-3 text-center font-display font-extrabold text-grape"
             style={{ background: 'color-mix(in srgb, #7C5CFF 12%, var(--surface))' }}
           >
-            🔮 Your clue! Sit tight — no hints while they hunt for your wavelength.
+            Your clue! Sit tight — no hints while they hunt for your wavelength.
           </div>
         ) : (
           <ReadyBar room={room} myId={myId} />

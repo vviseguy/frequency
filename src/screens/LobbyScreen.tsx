@@ -4,7 +4,7 @@ import { PlayerChip } from '../components/PlayerChip';
 import { ShareLink } from '../components/ShareLink';
 import { Logo, Stage } from '../components/Stage';
 import { TopicPicker } from '../components/TopicPicker';
-import { MIN_PLAYERS, seniorPlayer, setsTargetFor, type RoomState } from '../game/types';
+import { MIN_PLAYERS, setsTargetFor, type RoomState } from '../game/types';
 import { send, useIsHost, useMyId } from '../hooks/useNet';
 import { playSfx } from '../hooks/useSound';
 
@@ -14,18 +14,18 @@ export function LobbyScreen({ room }: { room: RoomState }) {
   const [showTopics, setShowTopics] = useState(false);
   const connected = room.players.filter((p) => p.connected);
   const canStart = connected.length >= MIN_PLAYERS;
-  const cluesEach = setsTargetFor(connected.length);
-  const totalClues = cluesEach * connected.length;
+  const totalClues = setsTargetFor(connected.length) * connected.length;
 
   return (
     <Stage>
-      <div className="flex flex-1 flex-col gap-5 py-4">
+      <div className="flex flex-1 flex-col gap-4 pt-8">
         <Logo small />
+
         <ShareLink code={room.code} />
 
         <div className="card-pop flex flex-col gap-3 p-4">
           <h2 className="font-display text-xl font-black">
-            Players <span style={{ color: 'var(--text-soft)' }}>({connected.length})</span>
+            Players <span style={{ color: 'var(--text-soft)' }}>· {connected.length}</span>
           </h2>
           <div className="flex flex-wrap gap-2">
             <AnimatePresence>
@@ -39,42 +39,25 @@ export function LobbyScreen({ room }: { room: RoomState }) {
               ))}
             </AnimatePresence>
           </div>
-          <p className="text-xs font-bold" style={{ color: 'var(--text-soft)' }}>
-            👑 {seniorPlayer(room.players)?.name ?? 'Host'} is hosting. If they drop, the
-            most senior player automatically takes over.
-          </p>
-        </div>
 
-        <div className="card-pop flex items-center justify-center gap-4 p-4 text-center">
-          <div>
-            <p className="font-display text-4xl font-black text-grape">{cluesEach}</p>
-            <p className="text-xs font-extrabold uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
-              clues each
-            </p>
-          </div>
-          <span className="text-2xl" style={{ color: 'var(--text-soft)' }}>
-            ·
-          </span>
-          <div>
-            <p className="font-display text-4xl font-black text-coral">{totalClues || '–'}</p>
-            <p className="text-xs font-extrabold uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
-              total rounds
-            </p>
+          <div className="mt-1 flex gap-2">
+            <button
+              className="btn-ghost flex-1 px-3 py-2 text-sm"
+              data-testid="topics-btn"
+              onClick={() => setShowTopics(true)}
+            >
+              Topics: {room.packs.length ? `${room.packs.length} packs` : 'All'}
+            </button>
+            {isHost && (
+              <button
+                className={`flex-1 px-3 py-2 text-sm ${room.intro ? 'btn-fun' : 'btn-ghost'}`}
+                onClick={() => send({ t: 'SET_INTRO', on: !room.intro })}
+              >
+                Intro: {room.intro ? 'on' : 'off'}
+              </button>
+            )}
           </div>
         </div>
-        <p className="-mt-3 text-center text-xs font-bold" style={{ color: 'var(--text-soft)' }}>
-          Scales with the room: smaller groups play more clues each.
-        </p>
-
-        <button
-          className="btn-ghost w-full"
-          data-testid="topics-btn"
-          onClick={() => setShowTopics(true)}
-        >
-          🎲 Topics:{' '}
-          {room.packs.length ? `${room.packs.length} pack${room.packs.length === 1 ? '' : 's'}` : 'All'}
-          {isHost ? ' · tap to choose' : ''}
-        </button>
 
         {showTopics && <TopicPicker room={room} onClose={() => setShowTopics(false)} />}
 
@@ -89,7 +72,7 @@ export function LobbyScreen({ room }: { room: RoomState }) {
                 send({ t: 'START_GAME' });
               }}
             >
-              {canStart ? '🚀 Start the game!' : `Need ${MIN_PLAYERS}+ players…`}
+              {canStart ? `Start · ${totalClues} rounds` : `Need ${MIN_PLAYERS}+ players…`}
             </button>
           ) : (
             <div
@@ -97,7 +80,7 @@ export function LobbyScreen({ room }: { room: RoomState }) {
               className="card-pop p-4 text-center font-display text-lg font-extrabold"
               style={{ color: 'var(--text-soft)' }}
             >
-              Waiting for the host to start… stretch those psychic muscles 🔮
+              Waiting for the host to start…
             </div>
           )}
         </div>

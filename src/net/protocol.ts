@@ -16,8 +16,10 @@ export type C2H =
   | { t: 'SET_READY'; ready: boolean }
   | { t: 'SUBMIT_CLUE'; clue: string }
   | { t: 'START_GAME' }
+  | { t: 'BEGIN_PLAY' }
   | { t: 'NEXT_ROUND' }
   | { t: 'PLAY_AGAIN' }
+  | { t: 'SET_INTRO'; on: boolean }
   | { t: 'SET_PACKS'; packs: string[] }
   | { t: 'RENAME'; name: string }
   | { t: 'REACTION'; emoji: string }

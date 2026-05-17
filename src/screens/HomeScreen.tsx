@@ -78,7 +78,7 @@ export function HomeScreen() {
             disabled={!!busy}
             onClick={host}
           >
-            {busy === 'host' ? 'Spinning up…' : '✨ Host a new game'}
+            {busy === 'host' ? 'Spinning up…' : 'Host a new game'}
           </button>
 
           <div className="flex items-center gap-3 text-ink/40">
@@ -115,7 +115,7 @@ export function HomeScreen() {
           )}
           {previous && !prefilled && (
             <button className="text-center text-sm font-extrabold text-ink/50 underline" onClick={() => join(previous)}>
-              ↩ Rejoin your last room ({previous})
+              Rejoin your last room ({previous})
             </button>
           )}
           {error && <p className="text-center text-sm font-extrabold text-coral">{error}</p>}

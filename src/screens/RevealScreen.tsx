@@ -66,7 +66,7 @@ export function RevealScreen({ room }: { room: RoomState }) {
 
         {card.voided ? (
           <div className="card-pop p-4 text-center font-display text-xl font-black text-coral">
-            😵 {owner?.name.replace(/^\p{Emoji}\s*/u, '')} disconnected — clue skipped!
+            {owner?.name.replace(/^\p{Emoji}\s*/u, '')} disconnected — clue skipped
           </div>
         ) : (
           <motion.div
@@ -76,9 +76,7 @@ export function RevealScreen({ room }: { room: RoomState }) {
             className="card-pop flex flex-col items-center gap-1 p-5 text-center"
             data-testid="reveal-points"
           >
-            <p className="font-display text-5xl font-black text-grape">
-              +{points} {points === 4 ? '🎯' : points ? '⭐' : '💨'}
-            </p>
+            <p className="font-display text-6xl font-black text-grape">+{points}</p>
             <p className="font-display text-2xl font-black">{scoreLabel(points)}</p>
             <p className="font-bold" style={{ color: 'var(--text-soft)' }}>
               {blurb}

@@ -59,6 +59,19 @@ describe('start of game', () => {
     expect(s.set?.cards.map((c) => c.ownerClientId)).toEqual(['host', 'p2', 'p3']);
     expect(s.setsTarget).toBe(3); // 3 players -> small group -> 3 clues each
   });
+  it('optional intro: SET_INTRO gates START into an INTRO phase, BEGIN_PLAY starts', () => {
+    let s = reduce(lobby(), 'host', { t: 'SET_INTRO', on: true }, ctx());
+    expect(s.intro).toBe(true);
+    expect(reduce(s, 'p2', { t: 'SET_INTRO', on: false }, ctx()).intro).toBe(true); // host only
+    s = reduce(s, 'host', { t: 'START_GAME' }, ctx());
+    expect(s.phase).toBe('INTRO');
+    expect(s.set).toBeNull();
+    expect(reduce(s, 'p2', { t: 'BEGIN_PLAY' }, ctx()).phase).toBe('INTRO'); // host only
+    s = reduce(s, 'host', { t: 'BEGIN_PLAY' }, ctx());
+    expect(s.phase).toBe('CLUE');
+    expect(s.set?.cards).toHaveLength(3);
+  });
+
   it('rejects non-owner / too few players', () => {
     expect(reduce(lobby(), 'p2', { t: 'START_GAME' }, ctx()).phase).toBe('LOBBY');
     let solo = freshRoom('T', 'host');

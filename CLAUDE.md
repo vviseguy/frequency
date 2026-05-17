@@ -1,0 +1,75 @@
+# Frequency — contributor & agent guide
+
+A peer-to-peer *Wavelength*-style party game. Static site (GitHub Pages), zero
+backend. This file documents the non-obvious decisions so they aren't reverted.
+
+## Run / test
+
+```bash
+npm run dev        # vite dev (also on LAN for phone testing)
+npm run build      # tsc --noEmit + vite build  (must stay green)
+npm test           # vitest unit suite
+npm run test:e2e   # playwright; auto-starts a local PeerJS broker
+```
+
+CI = `.github/workflows/ci.yml` (build + unit + e2e), separate from
+`deploy.yml` so a flaky network never blocks the Pages deploy. Keep both green.
+
+## Architecture
+
+- **True P2P over PeerJS.** The host's browser owns the canonical `RoomState`
+  (`src/game/types.ts`) and is the only writer. Peers send intents
+  (`src/net/protocol.ts`); the host runs them through one reducer
+  (`src/game/reducer.ts`) and broadcasts. Net code never touches the DOM — it
+  reads/writes zustand stores (`gameStore`, `netStore`).
+- **Room code → peer id is deterministic:** `freqv1-<CODE>-g<generation>`
+  (`src/net/roomCode.ts`). No directory service.
+- **Silent host migration.** If the host drops, the most-senior connected
+  player (lowest `joinedAt`) deterministically becomes host at
+  `generation+1`; others reconnect up a small generation ladder
+  (`src/net/migration.ts`, `src/net/net.ts`). This is intentionally **not
+  explained in the UI** — it just works. Don't add UI copy for it.
+
+## Game flow (do not reintroduce per-round psychics or options)
+
+`LOBBY → [INTRO] → CLUE → (GUESS → REVEAL)×players → SCOREBOARD → … → FINAL_RECAP → LOBBY`
+
+- **Everyone writes a clue simultaneously** for their own hidden target, then
+  the game **auto-cycles** through each clue (the rest guess on one shared
+  dial, lock in, reveal). One "set" = one clue per player.
+- **No game options.** Length is auto-sized inversely to group size:
+  `setsTargetFor()` → 3 / 2 / 1 clues per person (≤4 / ≤8 / 9+).
+- **INTRO** is an optional one-card how-to before the first set; host toggles
+  it in the lobby (`intro` in `RoomState`, default off). Default off keeps
+  tests/e2e flow unchanged.
+- Timers use absolute deadlines so they survive a host handoff.
+
+## Prompts
+
+Versioned topic packs in `public/prompts/`: `index.json` lists pack ids;
+`<id>.json` is `{ name, emoji, version, prompts:[{left,right}] }`. IDs are
+derived (`pack:index`) — editing is just appending a line. Host picks active
+packs in the lobby (`RoomState.packs`, `SET_PACKS`; `[]` = all).
+
+## UI conventions
+
+- **Memphis design**, mobile-first. Shared classes in `index.css`
+  (`card-pop`, `btn-*`, `chip`, `input-pop`) are theme-aware via CSS vars;
+  dark mode toggles `.dark` on `<html>`. Prefer these over raw colors.
+- **Icons:** use `lucide-react` for UI chrome. **Emoji are intentionally
+  limited** to two places only: auto-generated player name suggestions
+  (`src/lib/identity.ts`) and the bottom-of-screen reaction bar. Don't sprinkle
+  decorative emoji elsewhere. Topic-pack `emoji` is pack identity (allowed).
+- **Calm > busy:** few large cards per screen, minimal explanatory microcopy.
+  The background drifts lazily (frozen in focused play), is laid out on a
+  jittered grid (no overlaps / kind clumps), and is seeded per client
+  (`freq.bgseed`) so it's stable across reloads. A blurred scrim always sits
+  between background and content.
+- **Reactions:** unlimited to send; the *screen* just spawns fewer copies per
+  click in bigger rooms (`reactionBudget(setsTarget)` → 3/2/1).
+
+## Deploy
+
+Push to `main` → GitHub Actions builds and publishes to
+`https://vviseguy.github.io/frequency/`. Vite `base` is `/frequency/`; routing
+keys off `?room=` so deep links survive a hard refresh.

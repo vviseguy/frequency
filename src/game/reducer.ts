@@ -31,6 +31,7 @@ export function freshRoom(code: string, ownerClientId: string): RoomState {
     phase: 'LOBBY',
     players: [],
     ownerClientId,
+    intro: false,
     packs: [],
     setsTarget: 3,
     setsDone: 0,
@@ -175,6 +176,11 @@ export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): R
       return { ...state, packs: [...new Set(intent.packs)], updatedAt: ctx.now };
     }
 
+    case 'SET_INTRO': {
+      if (from !== state.ownerClientId || state.phase !== 'LOBBY') return state;
+      return { ...state, intro: intent.on, updatedAt: ctx.now };
+    }
+
     case 'START_GAME': {
       if (from !== state.ownerClientId || state.phase !== 'LOBBY') return state;
       const connected = state.players.filter((p) => p.connected);
@@ -186,7 +192,15 @@ export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): R
         setsTarget: setsTargetFor(connected.length),
         players: state.players.map((p) => ({ ...p, totalScore: 0 })),
       };
+      if (state.intro) {
+        return { ...reset, phase: 'INTRO', set: null, phaseEndsAt: null, updatedAt: ctx.now };
+      }
       return startSet(reset, ctx, 0);
+    }
+
+    case 'BEGIN_PLAY': {
+      if (from !== state.ownerClientId || state.phase !== 'INTRO') return state;
+      return startSet(state, ctx, 0);
     }
 
     case 'SUBMIT_CLUE': {

@@ -1,7 +1,8 @@
-// Top-left Memphis "spread" menu: a playful FAB that springs open a stack
-// of round option buttons.
+// Top-left Memphis "spread" menu. The toggle's shadow stays put — only the
+// icon rotates. Opening blurs the main content behind it.
 import { AnimatePresence, motion } from 'framer-motion';
-import { useState } from 'react';
+import { AlertTriangle, HelpCircle, LogOut, Menu as MenuIcon, Moon, Sun, Volume2, VolumeX, X } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import { toggleMute, useMuted } from '../hooks/useSound';
 import { toggleTheme, useTheme } from '../hooks/useTheme';
 import { netCtl } from '../hooks/useNet';
@@ -9,30 +10,29 @@ import { useNetStore } from '../net/netStore';
 
 const README = 'https://github.com/vviseguy/frequency#readme';
 
-function Round({
+function Item({
   label,
-  emoji,
+  icon,
   onClick,
   tone = 'ghost',
 }: {
   label: string;
-  emoji: string;
+  icon: ReactNode;
   onClick: () => void;
-  tone?: 'ghost' | 'danger' | 'fun';
+  tone?: 'ghost' | 'danger';
 }) {
-  const bg =
-    tone === 'danger' ? 'bg-coral text-white' : tone === 'fun' ? 'bg-sun text-ink' : 'bg-white';
+  const bg = tone === 'danger' ? 'bg-coral text-white' : 'bg-white';
   return (
     <motion.button
-      initial={{ scale: 0, x: -20, opacity: 0 }}
+      initial={{ scale: 0, x: -16, opacity: 0 }}
       animate={{ scale: 1, x: 0, opacity: 1 }}
-      exit={{ scale: 0, x: -20, opacity: 0 }}
+      exit={{ scale: 0, x: -16, opacity: 0 }}
       transition={{ type: 'spring', stiffness: 380, damping: 18 }}
       onClick={onClick}
       className={`flex items-center gap-2 rounded-full border-3 border-ink ${bg} py-2 pl-2 pr-4
-        text-sm font-display font-extrabold shadow-pop-sm`}
+        font-display text-sm font-extrabold shadow-pop-sm`}
     >
-      <span className="grid h-8 w-8 place-items-center rounded-full text-lg">{emoji}</span>
+      <span className="grid h-7 w-7 place-items-center">{icon}</span>
       {label}
     </motion.button>
   );
@@ -43,65 +43,82 @@ export function Menu() {
   const [confirmLeave, setConfirmLeave] = useState(false);
   const muted = useMuted();
   const theme = useTheme();
-  const role = useNetStore((s) => s.role);
-  const inRoom = role !== 'none';
+  const inRoom = useNetStore((s) => s.role) !== 'none';
+
+  const close = () => {
+    setOpen(false);
+    setConfirmLeave(false);
+  };
 
   return (
-    <div className="fixed left-2 top-2 z-50 flex flex-col items-start gap-2">
-      <motion.button
-        aria-label="menu"
-        onClick={() => {
-          setOpen((o) => !o);
-          setConfirmLeave(false);
-        }}
-        animate={{ rotate: open ? 90 : 0 }}
-        className="grid h-11 w-11 place-items-center rounded-full border-3 border-ink bg-grape
-          text-xl text-white shadow-pop-sm"
-      >
-        {open ? '✕' : '☰'}
-      </motion.button>
-
+    <>
+      {/* blur the main content while the menu is open */}
       <AnimatePresence>
         {open && (
-          <motion.div className="flex flex-col items-start gap-2">
-            <Round
-              label={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-              emoji={theme === 'dark' ? '☀️' : '🌙'}
-              onClick={toggleTheme}
-            />
-            <Round
-              label={muted ? 'Sound on' : 'Sound off'}
-              emoji={muted ? '🔈' : '🔊'}
-              onClick={toggleMute}
-            />
-            <Round
-              label="How to play"
-              emoji="❔"
-              onClick={() => window.open(README, '_blank', 'noopener')}
-            />
-            {inRoom &&
-              (confirmLeave ? (
-                <Round
-                  label="Tap to confirm leave"
-                  emoji="⚠️"
-                  tone="danger"
-                  onClick={() => {
-                    netCtl.leave();
-                    setOpen(false);
-                    setConfirmLeave(false);
-                  }}
-                />
-              ) : (
-                <Round
-                  label="Leave game"
-                  emoji="🚪"
-                  tone="danger"
-                  onClick={() => setConfirmLeave(true)}
-                />
-              ))}
-          </motion.div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={close}
+            className="fixed inset-0 z-40 backdrop-blur-md"
+            style={{ background: 'color-mix(in srgb, var(--page) 30%, transparent)' }}
+          />
         )}
       </AnimatePresence>
-    </div>
+
+      <div className="fixed left-2 top-2 z-50 flex flex-col items-start gap-2">
+        <button
+          aria-label="menu"
+          onClick={() => (open ? close() : setOpen(true))}
+          className="grid h-11 w-11 place-items-center rounded-full border-3 border-ink bg-grape
+            text-white shadow-pop-sm"
+        >
+          <motion.span animate={{ rotate: open ? 90 : 0 }} className="grid place-items-center">
+            {open ? <X size={22} strokeWidth={3} /> : <MenuIcon size={22} strokeWidth={3} />}
+          </motion.span>
+        </button>
+
+        <AnimatePresence>
+          {open && (
+            <motion.div className="flex flex-col items-start gap-2">
+              <Item
+                label={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                icon={theme === 'dark' ? <Sun size={18} strokeWidth={2.5} /> : <Moon size={18} strokeWidth={2.5} />}
+                onClick={toggleTheme}
+              />
+              <Item
+                label={muted ? 'Sound on' : 'Sound off'}
+                icon={muted ? <VolumeX size={18} strokeWidth={2.5} /> : <Volume2 size={18} strokeWidth={2.5} />}
+                onClick={toggleMute}
+              />
+              <Item
+                label="How to play"
+                icon={<HelpCircle size={18} strokeWidth={2.5} />}
+                onClick={() => window.open(README, '_blank', 'noopener')}
+              />
+              {inRoom &&
+                (confirmLeave ? (
+                  <Item
+                    label="Tap to confirm leave"
+                    icon={<AlertTriangle size={18} strokeWidth={2.5} />}
+                    tone="danger"
+                    onClick={() => {
+                      netCtl.leave();
+                      close();
+                    }}
+                  />
+                ) : (
+                  <Item
+                    label="Leave game"
+                    icon={<LogOut size={18} strokeWidth={2.5} />}
+                    tone="danger"
+                    onClick={() => setConfirmLeave(true)}
+                  />
+                ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
   );
 }

@@ -49,7 +49,7 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
     <Stage>
       <div className="flex flex-1 flex-col gap-4 py-4">
         <h2 className="text-center font-display text-4xl font-black">
-          {finished ? '🏆 Final Results!' : '🎞️ The story so far…'}
+          {finished ? 'Final Results' : 'The story so far…'}
         </h2>
 
         {!finished && cur && (
@@ -124,7 +124,7 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
                   send({ t: 'PLAY_AGAIN' });
                 }}
               >
-                🔁 Back to lobby
+                Back to lobby
               </button>
             ) : (
               <div

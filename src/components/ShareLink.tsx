@@ -1,7 +1,9 @@
+import { Check, Share2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { qrDataUrl } from '../lib/qr';
 import { shareLink } from '../net/roomCode';
 
+/** One cohesive invite card: code + QR + share, no scattered pieces. */
 export function ShareLink({ code }: { code: string }) {
   const link = shareLink(code);
   const [qr, setQr] = useState('');
@@ -27,23 +29,32 @@ export function ShareLink({ code }: { code: string }) {
   };
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="card-pop px-6 py-3 text-center">
-        <p className="text-xs font-extrabold uppercase tracking-widest text-ink/50">Room code</p>
-        <p data-testid="room-code" className="font-display text-5xl font-black tracking-[0.2em] text-grape">
-          {code}
-        </p>
-      </div>
+    <div className="card-pop flex items-center gap-4 p-4">
       {qr && (
         <img
           src={qr}
           alt="Scan to join"
-          className="h-36 w-36 rounded-2xl border-3 border-ink bg-white p-2 shadow-pop"
+          className="h-28 w-28 shrink-0 rounded-xl border-3 border-ink"
+          style={{ background: '#fff' }}
         />
       )}
-      <button className="btn-primary" onClick={share}>
-        {copied ? '✓ Link copied!' : '🔗 Share invite'}
-      </button>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <p className="text-xs font-extrabold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>
+          Room code
+        </p>
+        <p
+          data-testid="room-code"
+          className="font-display text-5xl font-black leading-none tracking-[0.15em] text-grape"
+        >
+          {code}
+        </p>
+        <button className="btn-primary mt-1 w-full px-3 py-2 text-base" onClick={share}>
+          <span className="inline-flex items-center gap-2">
+            {copied ? <Check size={18} strokeWidth={3} /> : <Share2 size={18} strokeWidth={3} />}
+            {copied ? 'Link copied!' : 'Share invite'}
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
