@@ -29,11 +29,13 @@ export async function createRoom(page: Page, name: string): Promise<string> {
 export async function joinRoom(
   context: BrowserContext,
   code: string,
-  _name: string,
+  name: string,
 ): Promise<Page> {
   const page = await context.newPage();
-  // ?room= triggers auto-rejoin (the host-refresh recovery path); no clicks.
+  // ?room= prefills the code from the share link; the player taps Join.
   await page.goto(`${APP}?room=${code}`);
+  await page.getByTestId('name-input').fill(name);
+  await page.getByTestId('join-btn').click();
   await waitPhase(page, 'LOBBY');
   return page;
 }

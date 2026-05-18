@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Logo, Stage } from '../components/Stage';
 import { netCtl } from '../hooks/useNet';
 import { unlockAudio, playSfx } from '../hooks/useSound';
@@ -51,17 +51,6 @@ export function HomeScreen() {
       }
     }
   };
-
-  // A refresh that still has ?room= (incl. the host's) auto-rejoins.
-  const autoTried = useRef(false);
-  useEffect(() => {
-    const fromUrl = roomFromUrl();
-    if (fromUrl && !autoTried.current) {
-      autoTried.current = true;
-      join(fromUrl);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <Stage>

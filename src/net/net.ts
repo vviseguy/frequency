@@ -55,7 +55,6 @@ class Net {
         this.startHost(prompts, undefined);
         net().set({ status: 'connected', code, myClientId: this.myId });
         markHosted(code);
-        syncUrl(code);
         this.armWatch();
         return code;
       } catch (e) {
@@ -83,7 +82,6 @@ class Net {
       net().set({ status: 'idle', error: null });
       throw new Error('join-failed');
     }
-    syncUrl(code);
     this.armWatch();
   }
 
@@ -104,7 +102,6 @@ class Net {
     this.client = null;
     game().setRoom(null);
     net().reset();
-    clearUrl();
   }
 
   // ---- host ----------------------------------------------------------
@@ -273,23 +270,6 @@ class Net {
 
 function wait(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
-}
-
-// Keep the room in the URL so a refresh (incl. the host's) can rejoin the
-// same game. clientId persists in localStorage, so you reclaim your slot.
-function syncUrl(code: string) {
-  try {
-    history.replaceState(null, '', `${import.meta.env.BASE_URL}?room=${code}`);
-  } catch {
-    /* ignore */
-  }
-}
-function clearUrl() {
-  try {
-    history.replaceState(null, '', import.meta.env.BASE_URL);
-  } catch {
-    /* ignore */
-  }
 }
 
 export const netCtl = new Net();

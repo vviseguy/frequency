@@ -55,8 +55,12 @@ CI = `.github/workflows/ci.yml` (build + unit + e2e), separate from
 - Timers use absolute deadlines so they survive a host handoff.
 - **Toasts**: `toast(msg, kind)` (see `useToast`) — used for errors like a
   dead room code. `<Toaster/>` renders top-right in app style.
-- **Refresh recovery**: URL keeps `?room=`; on load `HomeScreen` auto-rejoins.
-  If the old game is gone but we *hosted* it (`wasHostOf`), it silently spins
+- **No URL persistence.** The app never writes `?room=` to the URL, so a
+  refresh/cold load always lands on Home (the default). Share links
+  (`?room=CODE`) still pre-fill the join code — but joining is an explicit
+  tap, never automatic. In-app, `PLAY_AGAIN` returns to the lobby (still
+  hosting) and the menu's Leave returns Home; neither needs the URL.
+  Manually rejoining a code we *hosted* (`wasHostOf`) that's now gone spins
   up a fresh waiting room instead of erroring.
 
 ## Prompts
@@ -79,9 +83,9 @@ packs in the lobby (`RoomState.packs`, `SET_PACKS`; `[]` = all).
   inner container in `Stage` scrolls, so the fixed background never jumps on
   mobile. Content is vertically centred. A sticky header row holds the menu
   (left) + room-code/copy button (right) at equal height with safe-area top.
-- **URL state:** while in a room the URL carries `?room=CODE`
-  (`history.replaceState`); `HomeScreen` auto-rejoins on load, so a refresh
-  (incl. the host's) recovers the game (clientId persists → slot reclaimed).
+- **URL:** the app does not put room state in the URL. Default load = Home.
+  A share link's `?room=CODE` only pre-fills the join code (explicit tap to
+  join). See the "No URL persistence" note above.
 - **Calm > busy:** few large cards per screen, minimal explanatory microcopy.
   The background drifts lazily (frozen in focused play), is laid out on a
   jittered grid (no overlaps / kind clumps), and is seeded per client
