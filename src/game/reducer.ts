@@ -151,7 +151,7 @@ function scoreCard(
   }
 
   // classic: each guesser scores their own guess; the clue-giver earns a
-  // bonus (+2 per bullseye, +1 per "2-point" landing).
+  // bonus: +2 per bullseye (4), +1 per "close-ish" guess (3 or 2).
   const guessers = guessersFor(state, card);
   const guessResults = guessers.map((g) => {
     const value = card.guesses[g.clientId] ?? 50;
@@ -161,7 +161,7 @@ function scoreCard(
   });
   const ownerBonus = voided
     ? 0
-    : guessResults.reduce((n, r) => n + (r.points === 4 ? 2 : r.points === 2 ? 1 : 0), 0);
+    : guessResults.reduce((n, r) => n + (r.points === 4 ? 2 : r.points >= 2 ? 1 : 0), 0);
   deltas[card.ownerClientId] = (deltas[card.ownerClientId] ?? 0) + ownerBonus;
   return {
     card: { ...card, voided, result: null, guessResults, ownerBonus },

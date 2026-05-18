@@ -120,6 +120,22 @@ describe('classic mode (default): individual guesses', () => {
     expect(currentSet(s)!.guessIndex).toBe(1);
   });
 
+  it('clue-giver bonus: +2 per bullseye(4), +1 per close-ish(3 or 2)', () => {
+    let s = toGuessing();
+    const owner = ownerOf(s);
+    const [g1, g2] = guessersOf(s);
+    currentCard(s)!.target = 60;
+    s = reduce(s, g1, { t: 'DIAL_MOVE', value: 60 }, ctx()); // delta 0 -> 4 pts
+    s = reduce(s, g2, { t: 'DIAL_MOVE', value: 70 }, ctx()); // delta 10 -> 3 pts
+    s = revealCurrent(s);
+    const card = currentCard(s)!;
+    const pts = Object.fromEntries(card.guessResults!.map((r) => [r.clientId, r.points]));
+    expect(pts[g1]).toBe(4);
+    expect(pts[g2]).toBe(3);
+    expect(card.ownerBonus).toBe(3); // 2 (bullseye) + 1 (the 3-pt landing)
+    expect(s.players.find((p) => p.clientId === owner)!.totalScore).toBe(3);
+  });
+
   it('voids a card whose clue-giver disconnects', () => {
     let s = toGuessing();
     s = setConnected(s, ownerOf(s), false);
