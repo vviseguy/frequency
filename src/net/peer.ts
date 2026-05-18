@@ -41,6 +41,18 @@ export function openPeer(id?: string): Promise<Peer> {
           }
         : {}),
     });
+    // A blip can drop the broker link without destroying the Peer; PeerJS
+    // won't recover on its own, so nudge it back.
+    peer.on('disconnected', () => {
+      if (!peer.destroyed) {
+        try {
+          peer.reconnect();
+        } catch {
+          /* will be recreated by tryConnect if this fails */
+        }
+      }
+    });
+
     let settled = false;
     peer.on('open', () => {
       settled = true;

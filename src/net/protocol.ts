@@ -23,6 +23,7 @@ export type C2H =
   | { t: 'SET_MODE'; mode: 'classic' | 'coop' }
   | { t: 'SET_PACKS'; packs: string[] }
   | { t: 'RENAME'; name: string }
+  | { t: 'KICK'; clientId: ClientId }
   | { t: 'REACTION'; emoji: string }
   | { t: 'PING'; ts: number };
 

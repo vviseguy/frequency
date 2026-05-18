@@ -76,8 +76,10 @@ class Net {
     this.stopped = false;
     await loadPrompts();
     net().set({ status: 'connecting', role: 'peer', code, error: null, myClientId: this.myId });
-    // fast first attempt so a dead code fails quickly
-    const ok = await this.connectToHost(0, 2, 1000, 2);
+    // dead generations now fail instantly (peer-unavailable), so we can
+    // afford a long per-try window for the live host to finish its WebRTC
+    // handshake instead of giving up on a room that's actually there.
+    const ok = await this.connectToHost(0, 3, 5000);
     if (!ok) {
       net().set({ status: 'idle', error: null });
       throw new Error('join-failed');
@@ -130,7 +132,7 @@ class Net {
   private async connectToHost(
     fromGen: number,
     rounds: number,
-    perTryMs = 1600,
+    perTryMs = 4000,
     maxSpan?: number,
   ): Promise<boolean> {
     for (let r = 0; r < rounds && !this.stopped; r++) {
@@ -146,32 +148,51 @@ class Net {
     return false;
   }
 
-  private tryConnect(peerId: string, timeoutMs = 1600): Promise<DataConnection | null> {
+  private tryConnect(peerId: string, timeoutMs = 4000): Promise<DataConnection | null> {
     return new Promise(async (resolve) => {
-      if (!this.peer || this.peer.destroyed) {
+      // Recreate the Peer if it's gone OR lost its link to the broker
+      // (PeerJS won't recover a "disconnected" Peer for outbound connects).
+      if (!this.peer || this.peer.destroyed || this.peer.disconnected) {
+        try {
+          this.peer?.destroy();
+        } catch {
+          /* noop */
+        }
         try {
           this.peer = await openPeer();
         } catch {
           return resolve(null);
         }
       }
-      const conn = this.peer.connect(peerId, { reliable: true });
+      const peer = this.peer;
+      let done = false;
+      const onErr = (err: { type?: string }) => {
+        // probing a generation nobody owns -> fail this attempt instantly
+        if (err?.type === 'peer-unavailable') finish(null);
+      };
+      const finish = (c: DataConnection | null) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try {
+          peer.off('error', onErr);
+        } catch {
+          /* noop */
+        }
+        resolve(c);
+      };
+      peer.on('error', onErr);
+      const conn = peer.connect(peerId, { reliable: true });
       const timer = setTimeout(() => {
         try {
           conn.close();
         } catch {
           /* noop */
         }
-        resolve(null);
+        finish(null);
       }, timeoutMs);
-      conn.on('open', () => {
-        clearTimeout(timer);
-        resolve(conn);
-      });
-      conn.on('error', () => {
-        clearTimeout(timer);
-        resolve(null);
-      });
+      conn.on('open', () => finish(conn));
+      conn.on('error', () => finish(null));
     });
   }
 
@@ -203,6 +224,10 @@ class Net {
       pc.onPong = (rtt) => net().set({ latencyMs: rtt });
       pc.onClose = () => {
         if (this.client === pc && !this.stopped) net().set({ status: 'reconnecting' });
+      };
+      pc.onKick = (reason) => {
+        this.leave();
+        toast(reason || 'Removed by the host', 'error');
       };
       pc.hello(this.name);
       setTimeout(() => {

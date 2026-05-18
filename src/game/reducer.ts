@@ -35,6 +35,7 @@ export function freshRoom(code: string, ownerClientId: string): RoomState {
     ownerClientId,
     mode: 'classic',
     intro: false,
+    banned: [],
     packs: [],
     setsTarget: 3,
     setsDone: 0,
@@ -80,6 +81,21 @@ export function setConnected(state: RoomState, clientId: string, connected: bool
     if (senior) owner = senior.clientId;
   }
   return { ...state, players, ownerClientId: owner, updatedAt: Date.now() };
+}
+
+/** Drop a player entirely (host kick / idle timeout). Reassigns the crown
+ *  if needed; their in-flight card is voided by tick (missing owner). */
+export function removePlayer(state: RoomState, clientId: string, now = Date.now()): RoomState {
+  if (!state.players.some((p) => p.clientId === clientId)) return state;
+  const players = state.players.filter((p) => p.clientId !== clientId);
+  let owner = state.ownerClientId;
+  if (clientId === owner) {
+    const senior = [...players]
+      .filter((p) => p.connected)
+      .sort((a, b) => a.joinedAt - b.joinedAt)[0];
+    owner = senior?.clientId ?? players[0]?.clientId ?? owner;
+  }
+  return { ...state, players, ownerClientId: owner, updatedAt: now };
 }
 
 /** Deal the WHOLE game up front — every set, ready for simultaneous cluing. */
@@ -217,6 +233,15 @@ export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): R
         p.clientId === from ? { ...p, name: intent.name.slice(0, 18) } : p,
       );
       return { ...state, players, updatedAt: ctx.now };
+    }
+
+    case 'KICK': {
+      if (from !== state.ownerClientId || intent.clientId === state.ownerClientId) return state;
+      if (!state.players.some((p) => p.clientId === intent.clientId)) return state;
+      const banned = state.banned.includes(intent.clientId)
+        ? state.banned
+        : [...state.banned, intent.clientId];
+      return removePlayer({ ...state, banned }, intent.clientId, ctx.now);
     }
 
     case 'SET_PACKS': {
@@ -357,7 +382,8 @@ export function tick(state: RoomState, ctx: Ctx): RoomState {
   if (state.phase === 'GUESS' && currentSet(state)) {
     const card = currentCard(state);
     const owner = card && state.players.find((p) => p.clientId === card.ownerClientId);
-    if (card && owner && !owner.connected) return toReveal(state, ctx, true);
+    // owner gone (disconnected, kicked, or timed-out) -> skip their clue
+    if (card && (!owner || !owner.connected)) return toReveal(state, ctx, true);
   }
 
   switch (state.phase) {

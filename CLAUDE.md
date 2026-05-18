@@ -29,6 +29,17 @@ CI = `.github/workflows/ci.yml` (build + unit + e2e), separate from
   `generation+1`; others reconnect up a small generation ladder
   (`src/net/migration.ts`, `src/net/net.ts`). This is intentionally **not
   explained in the UI** — it just works. Don't add UI copy for it.
+- **Reconnection.** `tryConnect` recreates the Peer if it's destroyed *or*
+  `disconnected` from the broker (and `peer.on('disconnected')` auto
+  `reconnect()`s); a `peer-unavailable` error fails a dead generation
+  *instantly* so the long per-try window (~5 s) is spent only on the live
+  host finishing its WebRTC handshake. Don't shorten these blindly — a 1 s
+  timeout was the "can't reconnect" bug.
+- **Kick / idle-drop.** Host-only `KICK` intent removes a player and adds
+  them to `RoomState.banned` (host refuses their HELLO, boots the conn).
+  The host also auto-drops players gone > `IDLE_DROP_MS` (~2.5 min). A
+  removed player's in-flight clue is voided by `tick` (missing owner).
+  `removePlayer` reassigns the crown if needed.
 
 ## Game flow (do not reintroduce per-round psychics or options)
 

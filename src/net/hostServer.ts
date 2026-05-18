@@ -6,11 +6,12 @@ import {
   freshRoom,
   joinPlayer,
   reduce,
+  removePlayer,
   setConnected,
   tick,
   type Ctx,
 } from '../game/reducer';
-import { currentCard, type Prompt, type RoomState } from '../game/types';
+import { currentCard, IDLE_DROP_MS, type Prompt, type RoomState } from '../game/types';
 import type { C2H, ClientId } from './protocol';
 import { send } from './transport';
 
@@ -24,6 +25,7 @@ export class HostServer {
   private prompts: Prompt[];
   private conns = new Map<string, PeerConn>(); // keyed by peer.id
   private tokens = new Map<ClientId, string>();
+  private discAt = new Map<ClientId, number>(); // when a player went silent
   private loop: ReturnType<typeof setInterval> | null = null;
   private lastBroadcast = 0;
   private dialDirty = false;
@@ -100,6 +102,7 @@ export class HostServer {
     const pc = this.conns.get(conn.peer);
     this.conns.delete(conn.peer);
     if (pc?.clientId) {
+      this.discAt.set(pc.clientId, Date.now());
       this.state = setConnected(this.state, pc.clientId, false);
       this.broadcastState();
     }
@@ -113,7 +116,18 @@ export class HostServer {
     const m = env.msg;
 
     if (m.t === 'HELLO') {
+      if (this.state.banned.includes(m.clientId)) {
+        send(conn, this.state.ownerClientId, { t: 'KICK', reason: 'Removed by the host' });
+        try {
+          conn.close();
+        } catch {
+          /* noop */
+        }
+        this.conns.delete(conn.peer);
+        return;
+      }
       pc.clientId = m.clientId;
+      this.discAt.delete(m.clientId);
       this.state = joinPlayer(this.state, m.clientId, m.name);
       let token = this.tokens.get(m.clientId);
       if (!token) {
@@ -155,6 +169,20 @@ export class HostServer {
     const before = this.state;
     this.state = reduce(this.state, from, intent, this.ctx());
     if (this.state === before) return;
+    if (intent.t === 'KICK') {
+      this.discAt.delete(intent.clientId);
+      for (const [peerId, pc] of this.conns) {
+        if (pc.clientId === intent.clientId) {
+          send(pc.conn, this.state.ownerClientId, { t: 'KICK', reason: 'Removed by the host' });
+          try {
+            pc.conn.close();
+          } catch {
+            /* noop */
+          }
+          this.conns.delete(peerId);
+        }
+      }
+    }
     if (intent.t === 'DIAL_MOVE') {
       this.dialDirty = true; // fast path; coalesced in frame()
     } else {
@@ -171,8 +199,22 @@ export class HostServer {
 
   private frame() {
     const before = this.state;
+
+    // extreme case: drop players who've been gone a very long time
+    const now = Date.now();
+    let pruned = false;
+    for (const p of this.state.players) {
+      if (p.connected) continue;
+      const gone = this.discAt.get(p.clientId);
+      if (gone != null && now - gone > IDLE_DROP_MS) {
+        this.state = removePlayer(this.state, p.clientId, now);
+        this.discAt.delete(p.clientId);
+        pruned = true;
+      }
+    }
+
     this.state = tick(this.state, this.ctx());
-    const changed = this.state !== before;
+    const changed = pruned || this.state !== before;
 
     const card = currentCard(this.state);
     if (this.dialDirty && card) {

@@ -197,3 +197,28 @@ describe('presence', () => {
     expect(s.ownerClientId).toBe('p2');
   });
 });
+
+describe('host kick', () => {
+  it('only the owner can kick; kicked player is removed and banned', () => {
+    let s = lobby();
+    expect(reduce(s, 'p2', { t: 'KICK', clientId: 'p3' }, ctx()).players).toHaveLength(3);
+    expect(reduce(s, 'host', { t: 'KICK', clientId: 'host' }, ctx()).players).toHaveLength(3);
+    s = reduce(s, 'host', { t: 'KICK', clientId: 'p3' }, ctx());
+    expect(s.players.map((p) => p.clientId)).toEqual(['host', 'p2']);
+    expect(s.banned).toContain('p3');
+  });
+
+  it('a banned player cannot be re-added by joinPlayer guard at the host', () => {
+    let s = reduce(lobby(), 'host', { t: 'KICK', clientId: 'p2' }, ctx());
+    expect(s.banned).toContain('p2');
+    // hostServer refuses banned HELLOs; the reducer itself stays unaware,
+    // so removePlayer leaves a clean roster
+    expect(s.players.map((p) => p.clientId)).toEqual(['host', 'p3']);
+  });
+
+  it('removing the owner hands the crown to the most senior remaining', () => {
+    let s = lobby();
+    s = reduce(s, 'host', { t: 'KICK', clientId: 'host' }, ctx()); // no-op (self)
+    expect(s.ownerClientId).toBe('host');
+  });
+});

@@ -83,6 +83,7 @@ export interface RoomState {
   ownerClientId: string;
   mode: 'classic' | 'coop'; // coop = one shared score, re-approve after moves
   intro: boolean; // show the brief how-to-play before the first set
+  banned: string[]; // clientIds the host removed — refused on rejoin
   packs: string[]; // selected topic pack ids; [] means "all topics"
   setsTarget: number; // clues each person gives — auto-sized at game start
   setsDone: number;
@@ -100,6 +101,8 @@ export const MIN_PLAYERS = 2;
 // (Clue writing has no timer — players write all their clues up front.)
 export const GUESS_SECONDS = 60;
 export const REVEAL_MS = 6500;
+// A player gone this long (extreme case) is dropped from the game entirely.
+export const IDLE_DROP_MS = 150_000;
 export const BANDS = { bullseye: 5, close: 12, somewhat: 22 };
 
 /** Rounds-per-person, inversely proportional to group size. */

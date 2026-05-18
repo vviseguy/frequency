@@ -21,6 +21,8 @@ export function LobbyScreen({ room }: { room: RoomState }) {
   const myId = useMyId();
   const isHost = useIsHost();
   const [showTopics, setShowTopics] = useState(false);
+  const [armedKick, setArmedKick] = useState<string | null>(null);
+  const roster = room.players.filter((p) => !room.banned.includes(p.clientId));
   const connected = room.players.filter((p) => p.connected);
   const canStart = connected.length >= MIN_PLAYERS;
   const totalClues = setsTargetFor(connected.length) * connected.length;
@@ -51,12 +53,25 @@ export function LobbyScreen({ room }: { room: RoomState }) {
           </h2>
           <div className="flex flex-wrap gap-2">
             <AnimatePresence>
-              {room.players.map((p) => (
+              {roster.map((p) => (
                 <PlayerChip
                   key={p.clientId}
                   player={p}
                   isYou={p.clientId === myId}
                   isHost={p.clientId === room.ownerClientId}
+                  armed={armedKick === p.clientId}
+                  onKick={
+                    isHost && p.clientId !== myId
+                      ? () => {
+                          if (armedKick === p.clientId) {
+                            send({ t: 'KICK', clientId: p.clientId });
+                            setArmedKick(null);
+                          } else {
+                            setArmedKick(p.clientId);
+                          }
+                        }
+                      : undefined
+                  }
                 />
               ))}
             </AnimatePresence>

@@ -16,6 +16,7 @@ export class PeerClient {
   onReaction: (emoji: string, fromName: string) => void = () => {};
   onWelcome: (s: RoomState) => void = () => {};
   onClose: () => void = () => {};
+  onKick: (reason: string) => void = () => {};
   onPong: (rttMs: number) => void = () => {};
 
   constructor(conn: DataConnection, myClientId: ClientId) {
@@ -66,7 +67,7 @@ export class PeerClient {
         this.onPong(Date.now() - m.ts);
         break;
       case 'KICK':
-        this.onClose();
+        this.onKick(m.reason);
         break;
     }
   }

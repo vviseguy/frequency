@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Crown } from 'lucide-react';
+import { Crown, X } from 'lucide-react';
 import type { Player } from '../game/types';
 
 export function PlayerChip({
@@ -8,12 +8,16 @@ export function PlayerChip({
   isPsychic,
   isYou,
   showScore,
+  onKick,
+  armed,
 }: {
   player: Player;
   isHost?: boolean;
   isPsychic?: boolean;
   isYou?: boolean;
   showScore?: boolean;
+  onKick?: () => void; // shown only when provided (host, others)
+  armed?: boolean; // first tap arms, second confirms
 }) {
   const name = player.name.replace(/^\p{Emoji}\s*/u, '');
   return (
@@ -39,6 +43,25 @@ export function PlayerChip({
           {player.totalScore}
         </span>
       )}
+      {onKick &&
+        (armed ? (
+          <button
+            onClick={onKick}
+            className="ml-1 rounded-full bg-coral px-2 text-[10px] font-black text-white"
+            title="Confirm remove"
+          >
+            Remove?
+          </button>
+        ) : (
+          <button
+            onClick={onKick}
+            aria-label={`remove ${name}`}
+            title="Remove player"
+            className="ml-1 grid h-5 w-5 place-items-center rounded-full border-2 border-ink text-ink/60"
+          >
+            <X size={12} strokeWidth={3} />
+          </button>
+        ))}
     </motion.div>
   );
 }
