@@ -41,15 +41,20 @@ export async function joinRoom(
 }
 
 /**
- * Drive the new flow from a host page until the scoreboard: everyone submits
- * a clue at once, then the game auto-cycles each player's clue with the rest
- * locking in. Polls and reacts to whatever phase the host is in.
+ * Drive the flow from the host page until a set ends: everyone submits
+ * their clues, then the group cycles each clue locking in. Stops at the
+ * SCOREBOARD between sets, or FINAL_RECAP after the very last clue (which
+ * skips the scoreboard). Returns the phase it stopped on.
  */
-export async function playUntilScoreboard(pages: Page[], host: Page, budgetMs = 90_000) {
+export async function playUntilScoreboard(
+  pages: Page[],
+  host: Page,
+  budgetMs = 90_000,
+): Promise<string> {
   const deadline = Date.now() + budgetMs;
   while (Date.now() < deadline) {
     const ph = await phaseOf(host);
-    if (ph === 'SCOREBOARD') return;
+    if (ph === 'SCOREBOARD' || ph === 'FINAL_RECAP') return ph ?? '';
 
     if (ph === 'CLUE') {
       for (const p of pages) {

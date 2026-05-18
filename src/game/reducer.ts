@@ -190,6 +190,24 @@ function toReveal(state: RoomState, ctx: Ctx, voided = false): RoomState {
   const players = state.players.map((p) =>
     deltas[p.clientId] ? { ...p, totalScore: p.totalScore + deltas[p.clientId] } : p,
   );
+
+  // The very last clue of the whole game: skip the snap score reveal AND
+  // the scoreboard — go straight into the slow recap, which unveils the
+  // totals at its own pace (no spoiler before the build-up).
+  const lastTurn = si === state.setsTarget - 1 && idx === set.cards.length - 1;
+  if (lastTurn) {
+    return {
+      ...state,
+      phase: 'FINAL_RECAP',
+      players,
+      sets,
+      history: [...state.history, ...cards],
+      setsDone: state.setsDone + 1,
+      phaseEndsAt: null,
+      updatedAt: ctx.now,
+    };
+  }
+
   return {
     ...state,
     phase: 'REVEAL',

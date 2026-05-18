@@ -172,18 +172,24 @@ describe('sets & end of game', () => {
     expect(s.setsDone).toBe(1);
   });
 
-  it('NEXT_ROUND (owner only) ends the game; PLAY_AGAIN resets', () => {
+  it('the final clue skips the snap reveal & scoreboard, straight to recap', () => {
     let s = toGuessing();
-    s.setsTarget = 1;
-    for (let i = 0; i < 3; i++) {
-      s = revealCurrent(s);
-      now += 9000;
-      s = tick(s, ctx());
+    s.setsTarget = 1; // treat it as a one-set game
+    const n = currentSet(s)!.cards.length;
+    for (let i = 0; i < n; i++) {
+      const last = i === n - 1;
+      for (const g of guessersOf(s)) s = reduce(s, g, { t: 'SET_READY', ready: true }, ctx());
+      if (last) {
+        // no REVEAL, no SCOREBOARD — the recap reveals the score itself
+        expect(s.phase).toBe('FINAL_RECAP');
+      } else {
+        expect(s.phase).toBe('REVEAL');
+        now += 9000;
+        s = tick(s, ctx());
+        expect(s.phase).toBe('GUESS');
+      }
     }
-    expect(s.phase).toBe('SCOREBOARD');
-    expect(reduce(s, 'p2', { t: 'NEXT_ROUND' }, ctx()).phase).toBe('SCOREBOARD');
-    s = reduce(s, 'host', { t: 'NEXT_ROUND' }, ctx());
-    expect(s.phase).toBe('FINAL_RECAP');
+    expect(s.history).toHaveLength(n);
     s = reduce(s, 'host', { t: 'PLAY_AGAIN' }, ctx());
     expect(s.phase).toBe('LOBBY');
     expect(s.history).toHaveLength(0);

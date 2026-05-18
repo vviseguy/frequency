@@ -26,9 +26,11 @@ test('full game: simultaneous clues, cycle, recap, back to lobby', async ({ brow
   await host.getByTestId('start-btn').click();
   await waitAllPhase(pages, 'CLUE');
 
-  // 2 players -> 3 sets (small-group sizing). Play each set, host advances.
+  // 2 players -> 3 sets. Scoreboard between sets; the LAST clue skips the
+  // scoreboard and drops straight into the recap.
   for (let set = 1; set <= 3; set++) {
-    await playUntilScoreboard(pages, host);
+    const stop = await playUntilScoreboard(pages, host);
+    if (stop === 'FINAL_RECAP') break;
     await expect(host.getByTestId('next-round')).toBeVisible();
     await host.getByTestId('next-round').click();
   }
