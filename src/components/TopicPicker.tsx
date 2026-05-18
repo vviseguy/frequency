@@ -103,7 +103,8 @@ export function TopicPicker({ room, onClose }: { room: RoomState; onClose: () =>
                   className="card-pop relative overflow-hidden p-4 text-left transition-all"
                   style={{
                     borderColor: on ? '#7C5CFF' : 'var(--line)',
-                    boxShadow: on ? '4px 4px 0 0 #7C5CFF' : undefined,
+                    // selected = purple pop; unselected = the normal card shadow
+                    boxShadow: on ? '4px 4px 0 0 #7C5CFF' : '4px 4px 0 0 var(--line)',
                     opacity: on ? 1 : 0.6,
                   }}
                 >
