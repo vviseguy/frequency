@@ -34,9 +34,14 @@ CI = `.github/workflows/ci.yml` (build + unit + e2e), separate from
 
 `LOBBY → [INTRO] → CLUE → (GUESS → REVEAL)×players → SCOREBOARD → … → FINAL_RECAP → LOBBY`
 
-- **Everyone writes a clue simultaneously** for their own hidden target, then
-  the game **auto-cycles** through each clue (the rest guess on one shared
-  dial, lock in, reveal). One "set" = one clue per player.
+- **The whole game is dealt up front.** `START_GAME`/`BEGIN_PLAY` generates
+  ALL sets at once (`makeSets`); `state.sets` + `state.setIndex`. There is
+  **one** `CLUE` phase with **no timer** — every player writes *all* their
+  clues (one per set) back-to-back, then waits. Guessing starts when every
+  connected player has written all of theirs (`allCluesIn`). After that the
+  game cycles each set's clues; `SCOREBOARD` between sets advances
+  `setIndex` (it never returns to `CLUE`). Don't reintroduce a per-set clue
+  phase or a clue timer.
 - **No game options.** Length is auto-sized inversely to group size:
   `setsTargetFor()` → 3 / 2 / 1 clues per person (≤4 / ≤8 / 9+).
 - **INTRO** is an optional one-card how-to before the first set; host toggles

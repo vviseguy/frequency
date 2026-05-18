@@ -5,7 +5,14 @@ import { ReadyBar } from '../components/ReadyBar';
 import { Stage } from '../components/Stage';
 import { Timer } from '../components/Timer';
 import { useGameStore } from '../game/gameStore';
-import { BANDS, currentCard, GUESS_SECONDS, playerById, type RoomState } from '../game/types';
+import {
+  BANDS,
+  currentCard,
+  currentSet,
+  GUESS_SECONDS,
+  playerById,
+  type RoomState,
+} from '../game/types';
 import { rafThrottle } from '../lib/throttle';
 import { send, useMyId } from '../hooks/useNet';
 
@@ -23,8 +30,9 @@ export function GuessScreen({ room }: { room: RoomState }) {
   const someoneElse = coop && dragger && dragger.clientId !== myId;
 
   const value = coop ? dialValue : card.guesses[myId] ?? 50;
-  const total = room.set?.cards.length ?? 0;
-  const idx = (room.set?.guessIndex ?? 0) + 1;
+  const set = currentSet(room);
+  const total = set?.cards.length ?? 0;
+  const idx = (set?.guessIndex ?? 0) + 1;
 
   const pushMove = useMemo(
     () => rafThrottle((v: number) => send({ t: 'DIAL_MOVE', value: v })),
@@ -37,6 +45,7 @@ export function GuessScreen({ room }: { room: RoomState }) {
         <div className="flex items-center justify-between gap-3">
           <div className="card-pop flex-1 px-3 py-2">
             <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>
+              {room.setsTarget > 1 ? `Set ${room.setIndex + 1}/${room.setsTarget} · ` : ''}
               Clue {idx}/{total} · {owner?.name.replace(/^\p{Emoji}\s*/u, '')}’s clue
             </p>
             <p className="font-display text-2xl font-black leading-tight text-grape">“{card.clue}”</p>

@@ -1,12 +1,13 @@
 // The single authoritative game reducer. Runs ONLY on the host.
 import type { C2H } from '../net/protocol';
 import { colorFor } from '../lib/identity';
-import { allCluesIn, allReadyForCard, makeSet } from './rounds';
+import { allReadyForCard, makeSets } from './rounds';
 import { scoreFor } from './scoring';
 import {
+  allCluesIn,
   BANDS,
-  CLUE_SECONDS,
   currentCard,
+  currentSet,
   GUESS_SECONDS,
   guessersFor,
   MIN_PLAYERS,
@@ -37,7 +38,8 @@ export function freshRoom(code: string, ownerClientId: string): RoomState {
     packs: [],
     setsTarget: 3,
     setsDone: 0,
-    set: null,
+    sets: [],
+    setIndex: 0,
     history: [],
     phaseEndsAt: null,
     updatedAt: Date.now(),
@@ -80,26 +82,30 @@ export function setConnected(state: RoomState, clientId: string, connected: bool
   return { ...state, players, ownerClientId: owner, updatedAt: Date.now() };
 }
 
-function startSet(state: RoomState, ctx: Ctx, index: number): RoomState {
+/** Deal the WHOLE game up front — every set, ready for simultaneous cluing. */
+function dealGame(state: RoomState, ctx: Ctx): RoomState {
   return {
     ...state,
     phase: 'CLUE',
-    set: makeSet(state, ctx.prompts, index),
-    phaseEndsAt: ctx.now + CLUE_SECONDS * 1000,
+    sets: makeSets(state, ctx.prompts, state.setsTarget),
+    setIndex: 0,
+    phaseEndsAt: null, // no clue timer — players write all their clues, then wait
     updatedAt: ctx.now,
   };
 }
 
 function beginGuessing(state: RoomState, ctx: Ctx): RoomState {
-  if (!state.set) return state;
-  const cards = state.set.cards.map((c) => ({
-    ...c,
-    clue: c.clue ?? '(out of time!)',
+  if (!state.sets.length) return state;
+  const sets = state.sets.map((set) => ({
+    ...set,
+    guessIndex: 0,
+    cards: set.cards.map((c) => ({ ...c, clue: c.clue ?? '(no clue)' })),
   }));
   return {
     ...state,
     phase: 'GUESS',
-    set: { ...state.set, cards, guessIndex: 0 },
+    sets,
+    setIndex: 0,
     phaseEndsAt: ctx.now + GUESS_SECONDS * 1000,
     updatedAt: ctx.now,
   };
@@ -147,12 +153,24 @@ function scoreCard(
   };
 }
 
+/** Replace the card currently being guessed in the current set. */
+function patchCurrentCard(state: RoomState, patch: Partial<ClueCard>): RoomState {
+  const si = state.setIndex;
+  const set = state.sets[si];
+  if (!set) return state;
+  const cards = set.cards.map((c, i) => (i === set.guessIndex ? { ...c, ...patch } : c));
+  const sets = state.sets.map((s, i) => (i === si ? { ...s, cards } : s));
+  return { ...state, sets };
+}
+
 function toReveal(state: RoomState, ctx: Ctx, voided = false): RoomState {
-  const s = state.set;
-  if (!s) return state;
-  const idx = s.guessIndex;
-  const { card: scored, deltas } = scoreCard(state, s.cards[idx], voided);
-  const cards = s.cards.map((c, i) => (i === idx ? scored : c));
+  const si = state.setIndex;
+  const set = state.sets[si];
+  if (!set) return state;
+  const idx = set.guessIndex;
+  const { card: scored, deltas } = scoreCard(state, set.cards[idx], voided);
+  const cards = set.cards.map((c, i) => (i === idx ? scored : c));
+  const sets = state.sets.map((s, i) => (i === si ? { ...s, cards } : s));
   const players = state.players.map((p) =>
     deltas[p.clientId] ? { ...p, totalScore: p.totalScore + deltas[p.clientId] } : p,
   );
@@ -160,21 +178,23 @@ function toReveal(state: RoomState, ctx: Ctx, voided = false): RoomState {
     ...state,
     phase: 'REVEAL',
     players,
-    set: { ...s, cards },
+    sets,
     phaseEndsAt: ctx.now + REVEAL_MS,
     updatedAt: ctx.now,
   };
 }
 
 function afterReveal(state: RoomState, ctx: Ctx): RoomState {
-  const s = state.set;
-  if (!s) return state;
-  const next = s.guessIndex + 1;
-  if (next < s.cards.length) {
+  const si = state.setIndex;
+  const set = state.sets[si];
+  if (!set) return state;
+  const next = set.guessIndex + 1;
+  if (next < set.cards.length) {
+    const sets = state.sets.map((s, i) => (i === si ? { ...s, guessIndex: next } : s));
     return {
       ...state,
       phase: 'GUESS',
-      set: { ...s, guessIndex: next },
+      sets,
       phaseEndsAt: ctx.now + GUESS_SECONDS * 1000,
       updatedAt: ctx.now,
     };
@@ -183,7 +203,7 @@ function afterReveal(state: RoomState, ctx: Ctx): RoomState {
   return {
     ...state,
     phase: 'SCOREBOARD',
-    history: [...state.history, ...s.cards],
+    history: [...state.history, ...set.cards],
     setsDone: state.setsDone + 1,
     phaseEndsAt: null,
     updatedAt: ctx.now,
@@ -191,7 +211,6 @@ function afterReveal(state: RoomState, ctx: Ctx): RoomState {
 }
 
 export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): RoomState {
-  const s = state.set;
   switch (intent.t) {
     case 'RENAME': {
       const players = state.players.map((p) =>
@@ -223,62 +242,73 @@ export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): R
         ...state,
         history: [],
         setsDone: 0,
+        setIndex: 0,
         setsTarget: setsTargetFor(connected.length),
         players: state.players.map((p) => ({ ...p, totalScore: 0 })),
       };
       if (state.intro) {
-        return { ...reset, phase: 'INTRO', set: null, phaseEndsAt: null, updatedAt: ctx.now };
+        return { ...reset, phase: 'INTRO', sets: [], phaseEndsAt: null, updatedAt: ctx.now };
       }
-      return startSet(reset, ctx, 0);
+      return dealGame(reset, ctx);
     }
 
     case 'BEGIN_PLAY': {
       if (from !== state.ownerClientId || state.phase !== 'INTRO') return state;
-      return startSet(state, ctx, 0);
+      return dealGame(state, ctx);
     }
 
     case 'SUBMIT_CLUE': {
-      if (!s || state.phase !== 'CLUE') return state;
-      const cards = s.cards.map((c) =>
-        c.ownerClientId === from ? { ...c, clue: intent.clue.slice(0, 60) || '(no clue)' } : c,
-      );
-      const next = { ...state, set: { ...s, cards }, updatedAt: ctx.now };
+      if (state.phase !== 'CLUE') return state;
+      // fill the sender's NEXT un-written clue (lowest set index)
+      let filled = false;
+      const sets = state.sets.map((set) => ({
+        ...set,
+        cards: set.cards.map((c) => {
+          if (!filled && c.ownerClientId === from && c.clue == null) {
+            filled = true;
+            return { ...c, clue: intent.clue.slice(0, 60) || '(no clue)' };
+          }
+          return c;
+        }),
+      }));
+      if (!filled) return state;
+      const next = { ...state, sets, updatedAt: ctx.now };
       return allCluesIn(next) ? beginGuessing(next, ctx) : next;
     }
 
     case 'DIAL_GRAB': {
       const card = currentCard(state);
-      if (!s || state.phase !== 'GUESS' || !card || from === card.ownerClientId) return state;
+      if (state.phase !== 'GUESS' || !card || from === card.ownerClientId) return state;
       if (state.mode !== 'coop') return state; // classic: no shared steering
       if (card.dial.draggerId && card.dial.draggerId !== from) return state;
-      return patchCard(state, s, { dial: { ...card.dial, draggerId: from } });
+      return patchCurrentCard(state, { dial: { ...card.dial, draggerId: from } });
     }
     case 'DIAL_MOVE': {
       const card = currentCard(state);
-      if (!s || state.phase !== 'GUESS' || !card || from === card.ownerClientId) return state;
+      if (state.phase !== 'GUESS' || !card || from === card.ownerClientId) return state;
       const value = clamp(intent.value);
       if (state.mode === 'coop') {
         if (card.dial.draggerId && card.dial.draggerId !== from) return state;
         // moving the shared dial un-readies everyone (they re-approve)
         const ready = value !== card.dial.value ? {} : card.ready;
-        return patchCard(state, s, { dial: { value, draggerId: from }, ready });
+        return patchCurrentCard(state, { dial: { value, draggerId: from }, ready });
       }
       // classic: each guesser owns their guess; changing it un-readies them
-      return patchCard(state, s, {
+      return patchCurrentCard(state, {
         guesses: { ...card.guesses, [from]: value },
         ready: { ...card.ready, [from]: false },
       });
     }
     case 'DIAL_RELEASE': {
       const card = currentCard(state);
-      if (!s || !card || state.mode !== 'coop' || card.dial.draggerId !== from) return state;
-      return patchCard(state, s, { dial: { ...card.dial, draggerId: null } });
+      if (!card || state.mode !== 'coop' || card.dial.draggerId !== from) return state;
+      return patchCurrentCard(state, { dial: { ...card.dial, draggerId: null } });
     }
 
     case 'SET_READY': {
       const card = currentCard(state);
-      if (!s || state.phase !== 'GUESS' || !card || from === card.ownerClientId) return state;
-      const withReady = patchCard(state, s, { ready: { ...card.ready, [from]: intent.ready } });
+      if (state.phase !== 'GUESS' || !card || from === card.ownerClientId) return state;
+      const withReady = patchCurrentCard(state, { ready: { ...card.ready, [from]: intent.ready } });
       return allReadyForCard(withReady, currentCard(withReady)!)
         ? toReveal(withReady, ctx)
         : { ...withReady, updatedAt: ctx.now };
@@ -287,9 +317,18 @@ export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): R
     case 'NEXT_ROUND': {
       if (from !== state.ownerClientId || state.phase !== 'SCOREBOARD') return state;
       if (state.setsDone >= state.setsTarget) {
-        return { ...state, phase: 'FINAL_RECAP', set: null, phaseEndsAt: null, updatedAt: ctx.now };
+        return { ...state, phase: 'FINAL_RECAP', phaseEndsAt: null, updatedAt: ctx.now };
       }
-      return startSet(state, ctx, state.setsDone);
+      const si = state.setsDone; // next set to guess
+      const sets = state.sets.map((s, i) => (i === si ? { ...s, guessIndex: 0 } : s));
+      return {
+        ...state,
+        phase: 'GUESS',
+        setIndex: si,
+        sets,
+        phaseEndsAt: ctx.now + GUESS_SECONDS * 1000,
+        updatedAt: ctx.now,
+      };
     }
 
     case 'PLAY_AGAIN': {
@@ -297,7 +336,8 @@ export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): R
       return {
         ...state,
         phase: 'LOBBY',
-        set: null,
+        sets: [],
+        setIndex: 0,
         history: [],
         setsDone: 0,
         phaseEndsAt: null,
@@ -311,20 +351,10 @@ export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): R
   }
 }
 
-function patchCard(
-  state: RoomState,
-  s: NonNullable<RoomState['set']>,
-  patch: Partial<ClueCard>,
-): RoomState {
-  const cards = s.cards.map((c, i) => (i === s.guessIndex ? { ...c, ...patch } : c));
-  return { ...state, set: { ...s, cards } };
-}
-
 export function tick(state: RoomState, ctx: Ctx): RoomState {
-  const s = state.set;
   const due = state.phaseEndsAt != null && ctx.now >= state.phaseEndsAt;
 
-  if (state.phase === 'GUESS' && s) {
+  if (state.phase === 'GUESS' && currentSet(state)) {
     const card = currentCard(state);
     const owner = card && state.players.find((p) => p.clientId === card.ownerClientId);
     if (card && owner && !owner.connected) return toReveal(state, ctx, true);
@@ -332,7 +362,8 @@ export function tick(state: RoomState, ctx: Ctx): RoomState {
 
   switch (state.phase) {
     case 'CLUE':
-      return due && s ? beginGuessing(state, ctx) : state;
+      // no timer — start guessing as soon as everyone's clues are in
+      return allCluesIn(state) ? beginGuessing(state, ctx) : state;
     case 'GUESS':
       return due ? toReveal(state, ctx) : state;
     case 'REVEAL':

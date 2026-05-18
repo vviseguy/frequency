@@ -57,15 +57,10 @@ export class HostServer {
       generation,
       ownerClientId: myClientId,
       // drop any in-flight dragger so the new host re-arbitrates cleanly
-      set: snapshot.set
-        ? {
-            ...snapshot.set,
-            cards: snapshot.set.cards.map((c) => ({
-              ...c,
-              dial: { ...c.dial, draggerId: null },
-            })),
-          }
-        : null,
+      sets: snapshot.sets.map((set) => ({
+        ...set,
+        cards: set.cards.map((c) => ({ ...c, dial: { ...c.dial, draggerId: null } })),
+      })),
       updatedAt: Date.now(),
     };
     const hs = new HostServer(peer, snapshot.code, myClientId, prompts, seed);

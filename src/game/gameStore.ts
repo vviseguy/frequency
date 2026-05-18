@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { currentCard, type RoomState } from './types';
+import { currentCard, currentSet, type RoomState } from './types';
 
 interface GameState {
   room: RoomState | null;
@@ -12,8 +12,10 @@ interface GameState {
 }
 
 function turnKey(r: RoomState | null): string {
-  if (!r?.set) return 'none';
-  return `${r.set.index}:${r.set.guessIndex}`;
+  if (!r) return 'none';
+  const s = currentSet(r);
+  if (!s || (r.phase !== 'GUESS' && r.phase !== 'REVEAL')) return 'none';
+  return `${s.index}:${s.guessIndex}`;
 }
 
 export const useGameStore = create<GameState>((set) => ({

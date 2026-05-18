@@ -71,7 +71,7 @@ export interface ClueCard {
 
 export interface GameSet {
   index: number; // 0-based
-  cards: ClueCard[]; // one per player present at clue time, seniority order
+  cards: ClueCard[]; // one per player present at game start (shuffled order)
   guessIndex: number; // which card is being guessed now
 }
 
@@ -86,7 +86,9 @@ export interface RoomState {
   packs: string[]; // selected topic pack ids; [] means "all topics"
   setsTarget: number; // clues each person gives — auto-sized at game start
   setsDone: number;
-  set: GameSet | null;
+  // ALL clues are written up front, so every set is generated at game start.
+  sets: GameSet[];
+  setIndex: number; // which set is currently being guessed
   history: ClueCard[]; // every completed card, for the recap
   phaseEndsAt: number | null;
   updatedAt: number;
@@ -95,7 +97,7 @@ export interface RoomState {
 export const MIN_PLAYERS = 2;
 
 // No user options — these are fixed, tuned values.
-export const CLUE_SECONDS = 70; // everyone thinks at once, give them room
+// (Clue writing has no timer — players write all their clues up front.)
 export const GUESS_SECONDS = 60;
 export const REVEAL_MS = 6500;
 export const BANDS = { bullseye: 5, close: 12, somewhat: 22 };
@@ -147,10 +149,36 @@ export function cardPointDeltas(card: ClueCard, mode: RoomState['mode']): Record
   return d;
 }
 
+export function currentSet(state: RoomState): GameSet | null {
+  return state.sets[state.setIndex] ?? null;
+}
+
 export function currentCard(state: RoomState): ClueCard | null {
-  const s = state.set;
+  const s = currentSet(state);
   if (!s) return null;
   return s.cards[s.guessIndex] ?? null;
+}
+
+/** Every card belonging to a player, across all sets, set order. */
+export function cardsOwnedBy(state: RoomState, clientId: string): ClueCard[] {
+  return state.sets.map((s) => s.cards.find((c) => c.ownerClientId === clientId)).filter(
+    (c): c is ClueCard => !!c,
+  );
+}
+
+/** Clue-writing progress: how many players have submitted ALL their clues. */
+export function clueProgress(state: RoomState): { done: number; total: number } {
+  const connected = state.players.filter((p) => p.connected);
+  const done = connected.filter(
+    (p) => cardsOwnedBy(state, p.clientId).every((c) => c.clue != null),
+  ).length;
+  return { done, total: connected.length };
+}
+
+/** True once every connected player has written all of their clues. */
+export function allCluesIn(state: RoomState): boolean {
+  const { done, total } = clueProgress(state);
+  return total > 0 && done === total && state.sets.length > 0;
 }
 
 /** Connected players who guess a given card (everyone but its owner). */

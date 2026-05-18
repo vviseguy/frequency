@@ -7,15 +7,12 @@ import {
   type RoomState,
 } from './types';
 
-function pickPrompts(prompts: Prompt[], avoid: Set<string>, count: number): Prompt[] {
-  const fresh = prompts.filter((p) => !avoid.has(p.id));
-  const pool = (fresh.length >= count ? fresh : prompts).slice();
-  // shuffle
-  for (let i = pool.length - 1; i > 0; i--) {
+function shuffle<T>(a: T[]): T[] {
+  for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
+    [a[i], a[j]] = [a[j], a[i]];
   }
-  return pool.slice(0, count);
+  return a;
 }
 
 function makeCard(ownerClientId: string, prompt: Prompt): ClueCard {
@@ -34,42 +31,30 @@ function makeCard(ownerClientId: string, prompt: Prompt): ClueCard {
   };
 }
 
-function shuffle<T>(a: T[]): T[] {
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+/**
+ * Generate ALL sets up front (one card per connected player per set). Clues
+ * are written before any guessing, so the whole game is dealt at once.
+ * Prompts are unique across the entire game where possible; the guess order
+ * within each set is shuffled.
+ */
+export function makeSets(state: RoomState, prompts: Prompt[], setCount: number): GameSet[] {
+  const players = state.players.filter((p) => p.connected);
+  const pool = shuffle(promptsForPacks(prompts, state.packs ?? []).slice());
+  const need = players.length * setCount;
+  let cursor = 0;
+  const sets: GameSet[] = [];
+  for (let s = 0; s < setCount; s++) {
+    const order = shuffle(players.slice());
+    sets.push({
+      index: s,
+      guessIndex: 0,
+      cards: order.map((p) => {
+        const prompt = pool[need <= pool.length ? cursor++ : Math.floor(Math.random() * pool.length)];
+        return makeCard(p.clientId, prompt);
+      }),
+    });
   }
-  return a;
-}
-
-/** Build a fresh set: one clue card per connected player, unique prompts.
- *  The order clues are guessed in is shuffled each set. */
-export function makeSet(state: RoomState, prompts: Prompt[], index: number): GameSet {
-  const players = shuffle(state.players.filter((p) => p.connected).slice());
-  const pool = promptsForPacks(prompts, state.packs ?? []);
-  const recent = new Set(state.history.slice(-pool.length).map((c) => c.prompt.id));
-  const chosen = pickPrompts(pool, recent, players.length);
-  return {
-    index,
-    guessIndex: 0,
-    cards: players.map((p, i) => makeCard(p.clientId, chosen[i])),
-  };
-}
-
-export function allCluesIn(state: RoomState): boolean {
-  const s = state.set;
-  if (!s) return false;
-  const connected = new Set(state.players.filter((p) => p.connected).map((p) => p.clientId));
-  const live = s.cards.filter((c) => connected.has(c.ownerClientId));
-  return live.length > 0 && live.every((c) => c.clue != null);
-}
-
-export function clueProgress(state: RoomState): { done: number; total: number } {
-  const s = state.set;
-  if (!s) return { done: 0, total: 0 };
-  const connected = new Set(state.players.filter((p) => p.connected).map((p) => p.clientId));
-  const live = s.cards.filter((c) => connected.has(c.ownerClientId));
-  return { done: live.filter((c) => c.clue != null).length, total: live.length };
+  return sets;
 }
 
 export function allReadyForCard(state: RoomState, card: ClueCard): boolean {

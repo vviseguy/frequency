@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { freshRoom, joinPlayer } from '../../src/game/reducer';
-import { allCluesIn, allReadyForCard, clueProgress, makeSet } from '../../src/game/rounds';
-import { reactionBudget, setsTargetFor, type Prompt } from '../../src/game/types';
+import { allReadyForCard, makeSets } from '../../src/game/rounds';
+import {
+  allCluesIn,
+  clueProgress,
+  reactionBudget,
+  setsTargetFor,
+  type Prompt,
+  type RoomState,
+} from '../../src/game/types';
 
-const PROMPTS: Prompt[] = Array.from({ length: 8 }, (_, i) => ({
+const PROMPTS: Prompt[] = Array.from({ length: 20 }, (_, i) => ({
   id: `p${i}`,
   left: `L${i}`,
   right: `R${i}`,
@@ -15,6 +22,11 @@ function room(n = 3) {
   s = joinPlayer(s, 'host', 'Host');
   for (let i = 2; i <= n; i++) s = joinPlayer(s, `p${i}`, `P${i}`);
   return s;
+}
+
+function dealt(n = 3, setCount = 3): RoomState {
+  const s = room(n);
+  return { ...s, setsTarget: setCount, sets: makeSets(s, PROMPTS, setCount), phase: 'CLUE' };
 }
 
 describe('setsTargetFor (inverse to group size)', () => {
@@ -32,34 +44,42 @@ describe('setsTargetFor (inverse to group size)', () => {
   });
 });
 
-describe('makeSet', () => {
-  it('makes one unique-prompt card per connected player (order shuffled)', () => {
-    const s = room(3);
-    const set = makeSet(s, PROMPTS, 0);
-    expect(set.cards.map((c) => c.ownerClientId).sort()).toEqual(['host', 'p2', 'p3']);
-    expect(new Set(set.cards.map((c) => c.prompt.id)).size).toBe(3);
-    for (const c of set.cards) {
-      expect(c.target).toBeGreaterThanOrEqual(8);
-      expect(c.target).toBeLessThanOrEqual(92);
-      expect(c.clue).toBeNull();
+describe('makeSets (whole game dealt up front)', () => {
+  it('makes setCount sets, one card per player each, prompts unique', () => {
+    const sets = makeSets(room(3), PROMPTS, 3);
+    expect(sets).toHaveLength(3);
+    for (const set of sets) {
+      expect(set.cards.map((c) => c.ownerClientId).sort()).toEqual(['host', 'p2', 'p3']);
+      for (const c of set.cards) {
+        expect(c.target).toBeGreaterThanOrEqual(8);
+        expect(c.target).toBeLessThanOrEqual(92);
+        expect(c.clue).toBeNull();
+      }
     }
+    const allIds = sets.flatMap((s) => s.cards.map((c) => c.prompt.id));
+    expect(new Set(allIds).size).toBe(allIds.length); // unique across the game
   });
 });
 
 describe('clue progress / readiness', () => {
-  it('allCluesIn only when every connected player submitted', () => {
-    let s = room(3);
-    s = { ...s, set: makeSet(s, PROMPTS, 0) };
+  it('allCluesIn only once every connected player wrote ALL clues', () => {
+    const s = dealt(3, 3);
     expect(allCluesIn(s)).toBe(false);
-    s.set!.cards.forEach((c) => (c.clue = 'x'));
+    expect(clueProgress(s)).toEqual({ done: 0, total: 3 });
+    // host finishes all of theirs first
+    s.sets.forEach((set) =>
+      set.cards.filter((c) => c.ownerClientId === 'host').forEach((c) => (c.clue = 'x')),
+    );
+    expect(clueProgress(s)).toEqual({ done: 1, total: 3 });
+    expect(allCluesIn(s)).toBe(false);
+    s.sets.forEach((set) => set.cards.forEach((c) => (c.clue = 'x')));
     expect(allCluesIn(s)).toBe(true);
     expect(clueProgress(s)).toEqual({ done: 3, total: 3 });
   });
 
   it('a card is ready only when all non-owner players locked in', () => {
-    let s = room(3);
-    s = { ...s, set: makeSet(s, PROMPTS, 0) };
-    const card = s.set!.cards[0];
+    const s = dealt(3, 1);
+    const card = s.sets[0].cards[0];
     const guessers = ['host', 'p2', 'p3'].filter((id) => id !== card.ownerClientId);
     expect(allReadyForCard(s, card)).toBe(false);
     card.ready = { [guessers[0]]: true };

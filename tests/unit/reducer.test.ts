@@ -7,7 +7,7 @@ import {
   tick,
   type Ctx,
 } from '../../src/game/reducer';
-import { currentCard, type Prompt, type RoomState } from '../../src/game/types';
+import { currentCard, currentSet, type Prompt, type RoomState } from '../../src/game/types';
 
 const PROMPTS: Prompt[] = Array.from({ length: 10 }, (_, i) => ({
   id: `p${i}`,
@@ -30,11 +30,15 @@ const ALL = ['host', 'p2', 'p3'];
 const ownerOf = (s: RoomState) => currentCard(s)!.ownerClientId;
 const guessersOf = (s: RoomState) => ALL.filter((id) => id !== ownerOf(s));
 
-/** START_GAME then everyone submits a clue -> first card is being guessed. */
+/** START_GAME then everyone writes ALL their clues -> guessing begins. */
 function toGuessing(s0 = lobby()): RoomState {
   let s = reduce(s0, 'host', { t: 'START_GAME' }, ctx());
   expect(s.phase).toBe('CLUE');
-  for (const id of ALL) s = reduce(s, id, { t: 'SUBMIT_CLUE', clue: 'x' }, ctx());
+  // every player writes one clue per set, up front
+  let guard = 0;
+  while (s.phase === 'CLUE' && guard++ < 50) {
+    for (const id of ALL) s = reduce(s, id, { t: 'SUBMIT_CLUE', clue: 'x' }, ctx());
+  }
   expect(s.phase).toBe('GUESS');
   return s;
 }
@@ -51,11 +55,15 @@ beforeEach(() => {
 });
 
 describe('start of game', () => {
-  it('deals one clue card per connected player and auto-sizes sets', () => {
+  it('deals every set up front, one card per player per set, no clue timer', () => {
     const s = reduce(lobby(), 'host', { t: 'START_GAME' }, ctx());
     expect(s.phase).toBe('CLUE');
-    expect(s.set?.cards.map((c) => c.ownerClientId).sort()).toEqual(['host', 'p2', 'p3']);
     expect(s.setsTarget).toBe(3); // 3 players -> small group
+    expect(s.sets).toHaveLength(3);
+    for (const set of s.sets) {
+      expect(set.cards.map((c) => c.ownerClientId).sort()).toEqual(['host', 'p2', 'p3']);
+    }
+    expect(s.phaseEndsAt).toBeNull(); // no clue timer
   });
   it('optional intro gates START into INTRO; BEGIN_PLAY starts', () => {
     let s = reduce(lobby(), 'host', { t: 'SET_INTRO', on: true }, ctx());
@@ -109,7 +117,7 @@ describe('classic mode (default): individual guesses', () => {
     now += 9000;
     s = tick(s, ctx());
     expect(s.phase).toBe('GUESS');
-    expect(s.set!.guessIndex).toBe(1);
+    expect(currentSet(s)!.guessIndex).toBe(1);
   });
 
   it('voids a card whose clue-giver disconnects', () => {

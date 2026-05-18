@@ -4,7 +4,7 @@ import { Dial } from '../components/Dial';
 import { ReactionBar } from '../components/ReactionBar';
 import { Stage } from '../components/Stage';
 import { scoreBlurb, scoreLabel } from '../game/scoring';
-import { BANDS, currentCard, playerById, type RoomState } from '../game/types';
+import { BANDS, currentCard, currentSet, playerById, type RoomState } from '../game/types';
 import { playSfx } from '../hooks/useSound';
 import { popConfetti } from '../lib/celebrate';
 
@@ -12,8 +12,9 @@ export function RevealScreen({ room }: { room: RoomState }) {
   const card = currentCard(room)!;
   const owner = playerById(room, card.ownerClientId);
   const coop = room.mode === 'coop';
-  const total = room.set?.cards.length ?? 0;
-  const idx = (room.set?.guessIndex ?? 0) + 1;
+  const set = currentSet(room);
+  const total = set?.cards.length ?? 0;
+  const idx = (set?.guessIndex ?? 0) + 1;
 
   const coopPoints = card.result?.points ?? 0;
   const gr = card.guessResults ?? [];
