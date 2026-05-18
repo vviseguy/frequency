@@ -40,7 +40,7 @@ export function HomeScreen() {
     try {
       await netCtl.joinRoom(cc, name.trim() || '🎈 Player');
       rememberRoom(cc);
-    } catch {
+    } catch (e) {
       setBusy(null);
       if (wasHostOf(cc)) {
         // we created that room before — its code is gone, so just open a
@@ -48,7 +48,18 @@ export function HomeScreen() {
         toast('That game ended — started you a fresh room.', 'info');
         host();
       } else {
-        toast(`No game found for "${cc}". Double-check the code?`);
+        // Distinguish a wrong code from a live-but-unreachable room (strict
+        // NAT / VPN / work network) — the old single message blamed the code
+        // even when the code was fine.
+        const reason = (e as { reason?: string } | null)?.reason;
+        if (reason === 'unreachable')
+          toast(
+            `Found "${cc}", but couldn't connect. Try the same Wi-Fi, or turn off a VPN/work network.`,
+            'error',
+          );
+        else if (reason === 'broker')
+          toast("Couldn't reach the matchmaking server. Check your connection and retry.", 'error');
+        else toast(`No game found for "${cc}". Double-check the code?`);
       }
     }
   };

@@ -23,6 +23,20 @@ import { genRoomCode, hostPeerId } from './roomCode';
 const game = () => useGameStore.getState();
 const net = () => useNetStore.getState();
 
+// Why a join/probe failed — surfaced to the UI so it can give an actionable
+// message instead of always blaming the code. A live host that's registered
+// at the broker but unreachable over WebRTC (strict/symmetric NAT, VPN, work
+// network) looks NOTHING like a wrong code, and the old "no game found"
+// toast was actively misleading in that case.
+//   not-found   = every probed generation was peer-unavailable (likely a
+//                  dead/typo code, or a room that fully ended)
+//   unreachable = a host id WAS registered but the handshake never completed
+//   broker      = never even reached the matchmaking broker
+export type JoinOutcome = 'ok' | 'not-found' | 'unreachable' | 'broker';
+// Per-attempt result from tryConnect ('unavailable' = this one generation has
+// no owner; it only means "not-found" if EVERY probe says so).
+type TryReason = 'ok' | 'unavailable' | 'unreachable' | 'broker';
+
 class Net {
   private peer: Peer | null = null;
   private host: HostServer | null = null;
@@ -79,10 +93,10 @@ class Net {
     // dead generations now fail instantly (peer-unavailable), so we can
     // afford a long per-try window for the live host to finish its WebRTC
     // handshake instead of giving up on a room that's actually there.
-    const ok = await this.connectToHost(0, 3, 5000);
-    if (!ok) {
+    const outcome = await this.connectToHost(0, 3, 5000);
+    if (outcome !== 'ok') {
       net().set({ status: 'idle', error: null });
-      throw new Error('join-failed');
+      throw Object.assign(new Error('join-failed'), { reason: outcome });
     }
     this.armWatch();
   }
@@ -134,21 +148,35 @@ class Net {
     rounds: number,
     perTryMs = 4000,
     maxSpan?: number,
-  ): Promise<boolean> {
+  ): Promise<JoinOutcome> {
+    let sawUnreachable = false;
+    let sawBroker = false;
     for (let r = 0; r < rounds && !this.stopped; r++) {
       const gens = maxSpan != null ? ladder(fromGen).slice(0, maxSpan + 1) : ladder(fromGen);
       for (const gen of gens) {
-        const conn = await this.tryConnect(hostPeerId(this.code, gen), perTryMs);
-        if (!conn) continue;
-        const adopted = await this.adopt(conn);
-        if (adopted) return true;
+        const { conn, reason } = await this.tryConnect(hostPeerId(this.code, gen), perTryMs);
+        if (conn) {
+          if (await this.adopt(conn)) return 'ok';
+          // Channel opened but no WELCOME -> host is there, link didn't take.
+          sawUnreachable = true;
+          continue;
+        }
+        if (reason === 'unreachable') sawUnreachable = true;
+        else if (reason === 'broker') sawBroker = true;
       }
       await wait(350);
     }
-    return false;
+    // A reachable-but-silent host is the most actionable thing to report; an
+    // all-"unavailable" sweep means a wrong/dead code is the likely culprit.
+    if (sawUnreachable) return 'unreachable';
+    if (sawBroker) return 'broker';
+    return 'not-found';
   }
 
-  private tryConnect(peerId: string, timeoutMs = 4000): Promise<DataConnection | null> {
+  private tryConnect(
+    peerId: string,
+    timeoutMs = 4000,
+  ): Promise<{ conn: DataConnection | null; reason: TryReason }> {
     return new Promise(async (resolve) => {
       // Recreate the Peer if it's gone OR lost its link to the broker
       // (PeerJS won't recover a "disconnected" Peer for outbound connects).
@@ -161,16 +189,16 @@ class Net {
         try {
           this.peer = await openPeer();
         } catch {
-          return resolve(null);
+          return resolve({ conn: null, reason: 'broker' });
         }
       }
       const peer = this.peer;
       let done = false;
       const onErr = (err: { type?: string }) => {
         // probing a generation nobody owns -> fail this attempt instantly
-        if (err?.type === 'peer-unavailable') finish(null);
+        if (err?.type === 'peer-unavailable') finish(null, 'unavailable');
       };
-      const finish = (c: DataConnection | null) => {
+      const finish = (c: DataConnection | null, reason: TryReason) => {
         if (done) return;
         done = true;
         clearTimeout(timer);
@@ -179,20 +207,22 @@ class Net {
         } catch {
           /* noop */
         }
-        resolve(c);
+        resolve({ conn: c, reason });
       };
       peer.on('error', onErr);
       const conn = peer.connect(peerId, { reliable: true });
+      // Timed out without a peer-unavailable error => the id WAS registered
+      // (PeerJS reports an unowned id fast), but WebRTC never connected.
       const timer = setTimeout(() => {
         try {
           conn.close();
         } catch {
           /* noop */
         }
-        finish(null);
+        finish(null, 'unreachable');
       }, timeoutMs);
-      conn.on('open', () => finish(conn));
-      conn.on('error', () => finish(null));
+      conn.on('open', () => finish(conn, 'ok'));
+      conn.on('error', () => finish(null, 'unreachable'));
     });
   }
 
@@ -286,7 +316,7 @@ class Net {
       }
     } else {
       // Someone else takes over — reconnect up the generation ladder.
-      const ok = await this.connectToHost(nextGen, 6);
+      const ok = (await this.connectToHost(nextGen, 6)) === 'ok';
       this.migrating = false;
       if (!ok && !this.stopped) net().set({ status: 'reconnecting' });
     }
