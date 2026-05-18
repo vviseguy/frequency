@@ -247,8 +247,11 @@ function afterReveal(state: RoomState, ctx: Ctx): RoomState {
 export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): RoomState {
   switch (intent.t) {
     case 'RENAME': {
+      const name = intent.name.slice(0, 18);
+      if (!name.trim()) return state;
+      const emoji = name.match(/\p{Emoji}/u)?.[0] ?? '🎈';
       const players = state.players.map((p) =>
-        p.clientId === from ? { ...p, name: intent.name.slice(0, 18) } : p,
+        p.clientId === from ? { ...p, name, emoji } : p,
       );
       return { ...state, players, updatedAt: ctx.now };
     }

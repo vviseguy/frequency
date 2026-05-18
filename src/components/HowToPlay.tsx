@@ -1,48 +1,69 @@
-// A small animated walkthrough that demos the real Dial. Reused by the
-// in-game INTRO and the menu's "How to play" (no more GitHub link).
+// An animated walkthrough that demos the real Dial. Reused by the in-game
+// INTRO and the menu's "How to play". Each step plays a short progressive
+// animation (no repetitive loop): a clue being aimed, the group dragging
+// and second-guessing, then the score landing.
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight, MousePointer2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { BANDS } from '../game/types';
 import { Dial } from './Dial';
+import { MemphisBackground } from './memphis/Decor';
 
+interface Frame {
+  at: number; // ms after the step starts
+  value: number;
+  thought?: string; // a little "thinking out loud" bubble (step 2)
+}
 interface Step {
   title: string;
   body: string;
   left: string;
   right: string;
-  target: number;
-  script: number[]; // pointer positions the demo cycles through
-  bands?: boolean;
+  start: number;
+  timeline: Frame[];
+  target?: number; // step 3: reveal bands + a score badge
   badge?: string;
+  cursor?: boolean; // step 2: show a dragging cursor
 }
 
 const STEPS: Step[] = [
   {
     title: '1 · Write a clue',
-    body: 'You get a secret spot on a weird scale. Write a short clue that points right at it.',
+    body: 'Only you see where the answer sits on a spectrum between two extremes. Write a short clue that points right at that spot.',
     left: 'Overrated',
     right: 'Underrated',
-    target: 73,
-    script: [50, 73],
+    start: 50,
+    timeline: [
+      { at: 600, value: 50 },
+      { at: 1700, value: 74 }, // glides to the secret spot
+    ],
   },
   {
     title: '2 · Guess together',
-    body: 'Everyone hunts for each clue’s spot, then locks in. No timer to write — only to guess.',
+    body: 'Everyone debates and drags one shared dial — “maybe here… or there…” — then locks in when it feels right.',
     left: 'Cold',
     right: 'Hot',
-    target: 38,
-    script: [60, 28, 45, 38],
+    start: 55,
+    cursor: true,
+    timeline: [
+      { at: 400, value: 55, thought: 'hmm…' },
+      { at: 1300, value: 30, thought: 'this?' },
+      { at: 2300, value: 64, thought: 'or here?' },
+      { at: 3300, value: 44, thought: 'there!' },
+    ],
   },
   {
     title: '3 · Score it',
-    body: 'Closer = more points. The bullseye is worth 4, and the clue-giver earns a bonus too.',
+    body: 'Closer to the spot = more points; a bullseye is worth 4. In Classic mode the clue-giver also earns a bonus for every good guess.',
     left: 'Boring',
     right: 'Iconic',
+    start: 30,
     target: 62,
-    script: [62],
-    bands: true,
     badge: '+4',
+    timeline: [
+      { at: 300, value: 30 },
+      { at: 1500, value: 62 }, // settles onto the target
+    ],
   },
 ];
 
@@ -55,32 +76,47 @@ export function HowToPlay({
   onClose?: () => void; // menu modal: show a Close button + overlay
   onDone?: () => void; // intro: primary CTA on the last step
   doneLabel?: string;
-  note?: string; // e.g. non-host "host is starting…"
+  note?: string; // non-host "host is starting…"
 }) {
   const [step, setStep] = useState(0);
-  const [tick, setTick] = useState(0);
+  const [value, setValue] = useState(STEPS[0].start);
+  const [thought, setThought] = useState<string | undefined>();
+  const [showBadge, setShowBadge] = useState(false);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const s = STEPS[step];
   const last = step === STEPS.length - 1;
 
-  // cycle the demo pointer along the step's scripted path
+  // play this step's progressive timeline once (then it just rests)
   useEffect(() => {
-    setTick(0);
-    if (s.script.length < 2) return;
-    const id = setInterval(() => setTick((t) => t + 1), 1100);
-    return () => clearInterval(id);
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    setValue(s.start);
+    setThought(undefined);
+    setShowBadge(false);
+    for (const f of s.timeline) {
+      timers.current.push(
+        setTimeout(() => {
+          setValue(f.value);
+          if (f.thought !== undefined) setThought(f.thought);
+        }, f.at),
+      );
+    }
+    if (s.badge) {
+      const lastAt = s.timeline[s.timeline.length - 1]?.at ?? 0;
+      timers.current.push(setTimeout(() => setShowBadge(true), lastAt + 500));
+    }
+    return () => timers.current.forEach(clearTimeout);
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // gently auto-advance the steps (stops on the last one)
+  // gentle auto-advance (stops on the last step)
   useEffect(() => {
     if (last) return;
-    const id = setTimeout(() => setStep((x) => x + 1), 6000);
+    const id = setTimeout(() => setStep((x) => x + 1), 6500);
     return () => clearTimeout(id);
   }, [step, last]);
 
-  const value = s.script[tick % s.script.length];
-
   const inner = (
-    <div className="card-pop flex flex-col gap-4 p-5">
+    <div className="card-pop relative flex flex-col gap-4 p-5">
       <h2 className="font-display text-2xl font-black">{s.title}</h2>
 
       <div className="relative">
@@ -94,8 +130,8 @@ export function HowToPlay({
           >
             <Dial
               value={value}
-              target={s.bands ? s.target : undefined}
-              showBands={s.bands}
+              target={s.target}
+              showBands={!!s.target}
               pointer
               bands={BANDS}
               leftLabel={s.left}
@@ -103,12 +139,40 @@ export function HowToPlay({
             />
           </motion.div>
         </AnimatePresence>
-        {s.badge && (
+
+        {/* a little cursor "dragging" the dial on step 2 */}
+        {s.cursor && (
           <motion.div
-            key={`badge-${step}`}
+            className="pointer-events-none absolute bottom-7 text-ink"
+            animate={{ left: `${6 + value * 0.84}%` }}
+            transition={{ type: 'spring', stiffness: 120, damping: 18 }}
+            aria-hidden
+          >
+            <MousePointer2 size={26} strokeWidth={2.5} className="-rotate-12 fill-white" />
+          </motion.div>
+        )}
+
+        {/* thinking-out-loud bubble on step 2 */}
+        <AnimatePresence>
+          {thought && (
+            <motion.div
+              key={thought}
+              initial={{ opacity: 0, y: 8, scale: 0.8 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 16 }}
+              className="absolute left-1/2 top-0 -translate-x-1/2 rounded-full border-3 border-ink bg-white px-3 py-1 font-display text-sm font-extrabold shadow-pop-sm"
+            >
+              {thought}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {showBadge && s.badge && (
+          <motion.div
             initial={{ scale: 0, rotate: -12 }}
             animate={{ scale: 1, rotate: 0 }}
-            transition={{ delay: 0.5, type: 'spring', stiffness: 280, damping: 9 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 9 }}
             className="absolute right-2 top-0 rounded-full border-3 border-ink bg-sun px-3 py-1 font-display text-xl font-black text-ink shadow-pop-sm"
           >
             {s.badge}
@@ -116,7 +180,7 @@ export function HowToPlay({
         )}
       </div>
 
-      <p className="min-h-[3rem] font-bold leading-tight" style={{ color: 'var(--text-soft)' }}>
+      <p className="min-h-[3.5rem] font-bold leading-tight" style={{ color: 'var(--text-soft)' }}>
         {s.body}
       </p>
 
@@ -129,7 +193,6 @@ export function HowToPlay({
         >
           <ChevronLeft size={18} strokeWidth={3} />
         </button>
-
         <div className="flex gap-1.5">
           {STEPS.map((_, i) => (
             <span
@@ -139,7 +202,6 @@ export function HowToPlay({
             />
           ))}
         </div>
-
         <button
           aria-label="next"
           disabled={last}
@@ -180,12 +242,17 @@ export function HowToPlay({
   if (onClose) {
     return (
       <motion.div
-        className="fixed inset-0 z-[70] flex flex-col items-center overflow-y-auto p-5 backdrop-blur-md"
-        style={{ background: 'color-mix(in srgb, var(--page) 86%, transparent)' }}
+        className="fixed inset-0 z-[70] flex flex-col items-center overflow-y-auto p-5"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
+        <MemphisBackground />
+        <div
+          className="pointer-events-none fixed inset-0 -z-[1] backdrop-blur-[2px]"
+          style={{ background: 'color-mix(in srgb, var(--page) 55%, transparent)' }}
+          aria-hidden
+        />
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-4">
           {inner}
           {actions}

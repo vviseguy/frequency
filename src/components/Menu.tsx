@@ -1,11 +1,24 @@
 // Memphis "spread" menu — lives in the header. The toggle's shadow stays put
 // (only the icon rotates) and opening blurs the main content behind it.
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, HelpCircle, LogOut, Menu as MenuIcon, Moon, Sun, Volume2, VolumeX, X } from 'lucide-react';
+import {
+  AlertTriangle,
+  Check,
+  HelpCircle,
+  LogOut,
+  Menu as MenuIcon,
+  Moon,
+  Pencil,
+  Sun,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { setVolume, toggleMute, useMuted, useVolume } from '../hooks/useSound';
 import { toggleTheme, useTheme } from '../hooks/useTheme';
-import { netCtl } from '../hooks/useNet';
+import { netCtl, send, useMe } from '../hooks/useNet';
+import { saveName } from '../lib/identity';
 import { useNetStore } from '../net/netStore';
 import { HowToPlay } from './HowToPlay';
 
@@ -41,10 +54,21 @@ export function Menu() {
   const [open, setOpen] = useState(false);
   const [howTo, setHowTo] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [editName, setEditName] = useState<string | null>(null);
   const muted = useMuted();
   const volume = useVolume();
   const theme = useTheme();
+  const me = useMe();
   const inRoom = useNetStore((s) => s.role) !== 'none';
+
+  const commitName = () => {
+    const n = (editName ?? '').trim();
+    if (n) {
+      send({ t: 'RENAME', name: n });
+      saveName(n);
+    }
+    setEditName(null);
+  };
 
   const close = () => {
     setOpen(false);
@@ -110,6 +134,40 @@ export function Menu() {
                 className="h-2 w-full cursor-pointer appearance-none rounded-full border-2 border-ink bg-sun accent-grape"
               />
             </motion.div>
+            {inRoom &&
+              me &&
+              (editName !== null ? (
+                <motion.div
+                  initial={{ scale: 0, x: -16, opacity: 0 }}
+                  animate={{ scale: 1, x: 0, opacity: 1 }}
+                  exit={{ scale: 0, x: -16, opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 18 }}
+                  className="flex w-full items-center gap-2 rounded-full border-3 border-ink bg-white py-1.5 pl-3 pr-1.5 shadow-pop-sm"
+                >
+                  <input
+                    autoFocus
+                    value={editName}
+                    maxLength={18}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && commitName()}
+                    className="w-full bg-transparent font-display text-sm font-extrabold outline-none"
+                    placeholder="New name"
+                  />
+                  <button
+                    aria-label="save name"
+                    onClick={commitName}
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-ink bg-lime"
+                  >
+                    <Check size={16} strokeWidth={3} />
+                  </button>
+                </motion.div>
+              ) : (
+                <Item
+                  label="Change name"
+                  icon={<Pencil size={18} strokeWidth={2.5} />}
+                  onClick={() => setEditName(me.name)}
+                />
+              ))}
             <Item
               label="How to play"
               icon={<HelpCircle size={18} strokeWidth={2.5} />}

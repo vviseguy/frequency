@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
+import { Dices } from 'lucide-react';
 import { useState } from 'react';
 import { Logo, Stage } from '../components/Stage';
 import { netCtl } from '../hooks/useNet';
 import { unlockAudio, playSfx } from '../hooks/useSound';
 import { toast } from '../hooks/useToast';
-import { getSavedName, lastRoom, rememberRoom, saveName, wasHostOf } from '../lib/identity';
+import { getSavedName, lastRoom, randomName, rememberRoom, saveName, wasHostOf } from '../lib/identity';
 import { isValidCode, normalizeCode, roomFromUrl } from '../net/roomCode';
 
 export function HomeScreen() {
@@ -70,14 +71,29 @@ export function HomeScreen() {
         </motion.div>
 
         <div className="card-pop flex flex-col gap-3 p-5">
-          <input
-            className="input-pop"
-            data-testid="name-input"
-            value={name}
-            maxLength={18}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
-          />
+          <div className="flex gap-2">
+            <input
+              className="input-pop"
+              data-testid="name-input"
+              value={name}
+              maxLength={18}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
+            />
+            <button
+              type="button"
+              aria-label="shuffle name"
+              title="Shuffle name"
+              className="btn-ghost shrink-0 px-3"
+              onClick={() => {
+                const n = randomName(name);
+                setName(n);
+                saveName(n);
+              }}
+            >
+              <Dices size={20} strokeWidth={2.5} />
+            </button>
+          </div>
           <button
             className="btn-primary w-full"
             data-testid="host-btn"

@@ -6,7 +6,7 @@ import { playSfx } from '../hooks/useSound';
 export function IntroScreen() {
   const isHost = useIsHost();
   return (
-    <Stage focus>
+    <Stage>
       <HowToPlay
         {...(isHost
           ? {

@@ -104,6 +104,12 @@ packs in the lobby (`RoomState.packs`, `SET_PACKS`; `[]` = all).
   limited** to two places only: auto-generated player name suggestions
   (`src/lib/identity.ts`) and the bottom-of-screen reaction bar. Don't sprinkle
   decorative emoji elsewhere. Topic-pack `emoji` is pack identity (allowed).
+- **Names:** `randomName()` gives a varied default (critters/snacks/
+  characters, `🎈` generic fallback); Home has a shuffle button. Identity is
+  the localStorage `clientId`, *not* the name — so players can rename anytime
+  via the menu (`RENAME` intent, refreshes their emoji) without losing their
+  slot. Cross-device "same name = same slot" is intentionally NOT done (no
+  server; name-based identity would let anyone hijack a slot).
 - **Scrolling:** the document never scrolls (`body{overflow:hidden}`); an
   inner container in `Stage` scrolls, so the fixed background never jumps on
   mobile. Content is vertically centred. A sticky header row holds the menu
