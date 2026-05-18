@@ -1,4 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
+import { Check, Pencil } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Invite } from '../components/Invite';
 import { PlayerChip } from '../components/PlayerChip';
@@ -6,8 +7,9 @@ import { ReactionBar } from '../components/ReactionBar';
 import { Logo, Stage } from '../components/Stage';
 import { TopicPicker } from '../components/TopicPicker';
 import { MIN_PLAYERS, setsTargetFor, type RoomState } from '../game/types';
-import { send, useIsHost, useMyId } from '../hooks/useNet';
+import { send, useIsHost, useMe, useMyId } from '../hooks/useNet';
 import { playSfx } from '../hooks/useSound';
+import { saveName } from '../lib/identity';
 
 const WAITING = [
   'Tuning the frequencies…',
@@ -20,8 +22,19 @@ const WAITING = [
 export function LobbyScreen({ room }: { room: RoomState }) {
   const myId = useMyId();
   const isHost = useIsHost();
+  const me = useMe();
   const [showTopics, setShowTopics] = useState(false);
   const [armedKick, setArmedKick] = useState<string | null>(null);
+  const [editName, setEditName] = useState<string | null>(null);
+
+  const commitName = () => {
+    const n = (editName ?? '').trim();
+    if (n) {
+      send({ t: 'RENAME', name: n });
+      saveName(n);
+    }
+    setEditName(null);
+  };
   const roster = room.players.filter((p) => !room.banned.includes(p.clientId));
   const connected = room.players.filter((p) => p.connected);
   const canStart = connected.length >= MIN_PLAYERS;
@@ -76,6 +89,36 @@ export function LobbyScreen({ room }: { room: RoomState }) {
               ))}
             </AnimatePresence>
           </div>
+
+          {me &&
+            (editName !== null ? (
+              <div className="flex items-center gap-2 rounded-2xl border-3 border-ink bg-white px-3 py-1.5">
+                <input
+                  autoFocus
+                  value={editName}
+                  maxLength={18}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && commitName()}
+                  className="w-full bg-transparent font-display text-sm font-extrabold outline-none"
+                  placeholder="Your name"
+                />
+                <button
+                  aria-label="save name"
+                  onClick={commitName}
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 border-ink bg-lime"
+                >
+                  <Check size={16} strokeWidth={3} />
+                </button>
+              </div>
+            ) : (
+              <button
+                className="inline-flex items-center gap-1.5 self-start text-sm font-extrabold underline"
+                style={{ color: 'var(--text-soft)' }}
+                onClick={() => setEditName(me.name)}
+              >
+                <Pencil size={14} strokeWidth={2.5} /> Change my name
+              </button>
+            ))}
 
           <div className="mt-1 flex flex-col gap-2">
             <button

@@ -107,9 +107,14 @@ packs in the lobby (`RoomState.packs`, `SET_PACKS`; `[]` = all).
 - **Names:** `randomName()` gives a varied default (critters/snacks/
   characters, `🎈` generic fallback); Home has a shuffle button. Identity is
   the localStorage `clientId`, *not* the name — so players can rename anytime
-  via the menu (`RENAME` intent, refreshes their emoji) without losing their
-  slot. Cross-device "same name = same slot" is intentionally NOT done (no
-  server; name-based identity would let anyone hijack a slot).
+  via the menu **or** the lobby ("Change my name") — `RENAME` intent,
+  refreshes their emoji — without losing their slot. Cross-device "same
+  name = same slot" is intentionally NOT done (no server; name-based
+  identity would let anyone hijack a slot).
+- **Back button:** driven by History *state* only (no URL/route change) —
+  `App` pushes one entry on entering a room and `popstate` → `netCtl.leave()`
+  (Back = Home). Don't reflect the room in the URL; forward-restore is
+  intentionally omitted (it'd require the removed auto-rejoin).
 - **Scrolling:** the document never scrolls (`body{overflow:hidden}`); an
   inner container in `Stage` scrolls, so the fixed background never jumps on
   mobile. Content is vertically centred. A sticky header row holds the menu
