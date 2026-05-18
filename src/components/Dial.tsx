@@ -136,7 +136,10 @@ export function Dial({
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        className={`w-full ${interactive ? 'no-touch-scroll cursor-grab active:cursor-grabbing' : ''}`}
+        className={`w-full outline-none focus:outline-none focus-visible:outline-none ${
+          interactive ? 'no-touch-scroll cursor-grab active:cursor-grabbing' : ''
+        }`}
+        style={{ outline: 'none', WebkitTapHighlightColor: 'transparent' }}
         onPointerDown={begin}
         onPointerMove={move}
         onPointerUp={end}
