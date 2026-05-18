@@ -66,7 +66,6 @@ export function RevealScreen({ room }: { room: RoomState }) {
           <Dial
             value={coop ? card.dial.value : card.target}
             target={card.target}
-            showTarget
             showBands
             pointer={coop}
             markers={coop ? undefined : markers}
