@@ -61,9 +61,12 @@ CI = `.github/workflows/ci.yml` (build + unit + e2e), separate from
   harmless safety) since the last set never shows a scoreboard.
 - **No game options.** Length is auto-sized inversely to group size:
   `setsTargetFor()` → 3 / 2 / 1 clues per person (≤4 / ≤8 / 9+).
-- **INTRO** is an optional one-card how-to before the first set; host toggles
-  it in the lobby (`intro` in `RoomState`, default off). Default off keeps
-  tests/e2e flow unchanged.
+- **INTRO** is an optional how-to before the first set; host toggles it in
+  the lobby (`intro` in `RoomState`, default off). Default off keeps
+  tests/e2e flow unchanged. It and the menu's "How to play" share one
+  animated component (`HowToPlay.tsx`) that demos the real `Dial` — the
+  menu opens it in-app (no GitHub link). `onClose` = menu modal,
+  `onDone`/`doneLabel` = intro CTA, `note` = non-host waiting line.
 - **Modes** (`mode`, default `classic`):
   - `classic` = **individual guesses**: each guesser owns `card.guesses[id]`
     (their own pointer; moving un-readies just them). At reveal everyone

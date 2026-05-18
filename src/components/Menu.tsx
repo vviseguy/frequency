@@ -7,8 +7,7 @@ import { setVolume, toggleMute, useMuted, useVolume } from '../hooks/useSound';
 import { toggleTheme, useTheme } from '../hooks/useTheme';
 import { netCtl } from '../hooks/useNet';
 import { useNetStore } from '../net/netStore';
-
-const README = 'https://github.com/vviseguy/frequency#readme';
+import { HowToPlay } from './HowToPlay';
 
 function Item({
   label,
@@ -40,6 +39,7 @@ function Item({
 
 export function Menu() {
   const [open, setOpen] = useState(false);
+  const [howTo, setHowTo] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const muted = useMuted();
   const volume = useVolume();
@@ -113,7 +113,10 @@ export function Menu() {
             <Item
               label="How to play"
               icon={<HelpCircle size={18} strokeWidth={2.5} />}
-              onClick={() => window.open(README, '_blank', 'noopener')}
+              onClick={() => {
+                setHowTo(true);
+                close();
+              }}
             />
             {inRoom &&
               (confirmLeave ? (
@@ -136,6 +139,10 @@ export function Menu() {
               ))}
           </motion.div>
         )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {howTo && <HowToPlay onClose={() => setHowTo(false)} />}
       </AnimatePresence>
     </div>
   );
