@@ -8,6 +8,7 @@ import {
   CLUE_SECONDS,
   currentCard,
   GUESS_SECONDS,
+  guessersFor,
   MIN_PLAYERS,
   REVEAL_MS,
   setsTargetFor,
@@ -104,16 +105,45 @@ function beginGuessing(state: RoomState, ctx: Ctx): RoomState {
   };
 }
 
-function scoreCard(card: ClueCard, voided: boolean): ClueCard {
-  const points = voided ? 0 : scoreFor(card.dial.value, card.target, BANDS);
+/** Score a card. Returns the resolved card + per-player point deltas. */
+function scoreCard(
+  state: RoomState,
+  card: ClueCard,
+  voided: boolean,
+): { card: ClueCard; deltas: Record<string, number> } {
+  const deltas: Record<string, number> = {};
+
+  if (state.mode === 'coop') {
+    const points = voided ? 0 : scoreFor(card.dial.value, card.target, BANDS);
+    deltas[card.ownerClientId] = points;
+    return {
+      card: {
+        ...card,
+        voided,
+        result: { clientId: card.ownerClientId, delta: Math.abs(card.dial.value - card.target), points },
+        guessResults: null,
+        ownerBonus: 0,
+      },
+      deltas,
+    };
+  }
+
+  // classic: each guesser scores their own guess; the clue-giver earns a
+  // bonus (+2 per bullseye, +1 per "2-point" landing).
+  const guessers = guessersFor(state, card);
+  const guessResults = guessers.map((g) => {
+    const value = card.guesses[g.clientId] ?? 50;
+    const points = voided ? 0 : scoreFor(value, card.target, BANDS);
+    deltas[g.clientId] = (deltas[g.clientId] ?? 0) + points;
+    return { clientId: g.clientId, value, points };
+  });
+  const ownerBonus = voided
+    ? 0
+    : guessResults.reduce((n, r) => n + (r.points === 4 ? 2 : r.points === 2 ? 1 : 0), 0);
+  deltas[card.ownerClientId] = (deltas[card.ownerClientId] ?? 0) + ownerBonus;
   return {
-    ...card,
-    voided,
-    result: {
-      clientId: card.ownerClientId,
-      delta: Math.abs(card.dial.value - card.target),
-      points,
-    },
+    card: { ...card, voided, result: null, guessResults, ownerBonus },
+    deltas,
   };
 }
 
@@ -121,12 +151,10 @@ function toReveal(state: RoomState, ctx: Ctx, voided = false): RoomState {
   const s = state.set;
   if (!s) return state;
   const idx = s.guessIndex;
-  const scored = scoreCard(s.cards[idx], voided);
+  const { card: scored, deltas } = scoreCard(state, s.cards[idx], voided);
   const cards = s.cards.map((c, i) => (i === idx ? scored : c));
   const players = state.players.map((p) =>
-    p.clientId === scored.ownerClientId
-      ? { ...p, totalScore: p.totalScore + (scored.result?.points ?? 0) }
-      : p,
+    deltas[p.clientId] ? { ...p, totalScore: p.totalScore + deltas[p.clientId] } : p,
   );
   return {
     ...state,
@@ -221,22 +249,29 @@ export function reduce(state: RoomState, from: string, intent: C2H, ctx: Ctx): R
     case 'DIAL_GRAB': {
       const card = currentCard(state);
       if (!s || state.phase !== 'GUESS' || !card || from === card.ownerClientId) return state;
+      if (state.mode !== 'coop') return state; // classic: no shared steering
       if (card.dial.draggerId && card.dial.draggerId !== from) return state;
       return patchCard(state, s, { dial: { ...card.dial, draggerId: from } });
     }
     case 'DIAL_MOVE': {
       const card = currentCard(state);
       if (!s || state.phase !== 'GUESS' || !card || from === card.ownerClientId) return state;
-      if (card.dial.draggerId && card.dial.draggerId !== from) return state;
       const value = clamp(intent.value);
-      // co-op: moving the dial un-readies everyone (they must re-approve)
-      const moved = value !== card.dial.value;
-      const ready = state.mode === 'coop' && moved ? {} : card.ready;
-      return patchCard(state, s, { dial: { value, draggerId: from }, ready });
+      if (state.mode === 'coop') {
+        if (card.dial.draggerId && card.dial.draggerId !== from) return state;
+        // moving the shared dial un-readies everyone (they re-approve)
+        const ready = value !== card.dial.value ? {} : card.ready;
+        return patchCard(state, s, { dial: { value, draggerId: from }, ready });
+      }
+      // classic: each guesser owns their guess; changing it un-readies them
+      return patchCard(state, s, {
+        guesses: { ...card.guesses, [from]: value },
+        ready: { ...card.ready, [from]: false },
+      });
     }
     case 'DIAL_RELEASE': {
       const card = currentCard(state);
-      if (!s || !card || card.dial.draggerId !== from) return state;
+      if (!s || !card || state.mode !== 'coop' || card.dial.draggerId !== from) return state;
       return patchCard(state, s, { dial: { ...card.dial, draggerId: null } });
     }
 

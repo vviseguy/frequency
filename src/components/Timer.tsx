@@ -20,7 +20,7 @@ export function Timer({ endsAt, total }: { endsAt: number | null; total: number 
   return (
     <div className={`relative h-16 w-16 ${low ? 'animate-wiggle' : ''}`} aria-label={`${secs} seconds left`}>
       <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90">
-        <circle cx="32" cy="32" r={R} fill="white" stroke="#1A1626" strokeWidth="5" />
+        <circle cx="32" cy="32" r={R} fill="var(--surface)" stroke="var(--line)" strokeWidth="5" />
         <circle
           cx="32"
           cy="32"
@@ -34,7 +34,10 @@ export function Timer({ endsAt, total }: { endsAt: number | null; total: number 
           style={{ transition: 'stroke-dashoffset 0.2s linear' }}
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center font-display text-xl font-extrabold">
+      <span
+        className="absolute inset-0 flex items-center justify-center font-display text-xl font-extrabold"
+        style={{ color: 'var(--text)' }}
+      >
         {secs}
       </span>
     </div>

@@ -14,10 +14,15 @@ export function GuessScreen({ room }: { room: RoomState }) {
   const card = currentCard(room)!;
   const owner = playerById(room, card.ownerClientId);
   const meOwner = card.ownerClientId === myId;
+  const coop = room.mode === 'coop';
+
+  // co-op: one shared dial (fast channel). classic: my own guess.
   const dialValue = useGameStore((s) => s.dialValue);
   const draggerId = useGameStore((s) => s.dialDraggerId);
   const dragger = draggerId ? playerById(room, draggerId) : null;
-  const someoneElse = dragger && dragger.clientId !== myId;
+  const someoneElse = coop && dragger && dragger.clientId !== myId;
+
+  const value = coop ? dialValue : card.guesses[myId] ?? 50;
   const total = room.set?.cards.length ?? 0;
   const idx = (room.set?.guessIndex ?? 0) + 1;
 
@@ -28,7 +33,7 @@ export function GuessScreen({ room }: { room: RoomState }) {
 
   return (
     <Stage focus>
-      <div className="flex flex-1 flex-col gap-3 py-3">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
           <div className="card-pop flex-1 px-3 py-2">
             <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>
@@ -41,7 +46,7 @@ export function GuessScreen({ room }: { room: RoomState }) {
 
         <div className="card-pop p-3">
           <Dial
-            value={dialValue}
+            value={value}
             interactive={!meOwner}
             bands={BANDS}
             leftLabel={card.prompt.left}
@@ -49,12 +54,16 @@ export function GuessScreen({ room }: { room: RoomState }) {
             draggerName={someoneElse ? dragger!.name.replace(/^\p{Emoji}\s*/u, '') : null}
             draggerEmoji={dragger?.emoji}
             draggerColor={dragger?.color ?? '#7C5CFF'}
-            onGrab={() => send({ t: 'DIAL_GRAB' })}
+            onGrab={coop ? () => send({ t: 'DIAL_GRAB' }) : undefined}
             onChange={pushMove}
-            onRelease={() => {
-              pushMove.cancel();
-              send({ t: 'DIAL_RELEASE' });
-            }}
+            onRelease={
+              coop
+                ? () => {
+                    pushMove.cancel();
+                    send({ t: 'DIAL_RELEASE' });
+                  }
+                : () => pushMove.cancel()
+            }
           />
         </div>
 
@@ -66,10 +75,20 @@ export function GuessScreen({ room }: { room: RoomState }) {
             Your clue! Sit tight — no hints while they hunt for your wavelength.
           </div>
         ) : (
-          <ReadyBar room={room} myId={myId} />
+          <>
+            {!coop && (
+              <p
+                className="text-center text-xs font-extrabold"
+                style={{ color: 'var(--text-soft)' }}
+              >
+                Everyone guesses on their own — closest wins.
+              </p>
+            )}
+            <ReadyBar room={room} myId={myId} />
+          </>
         )}
 
-        <div className="mt-auto pt-2">
+        <div className="pt-1">
           <ReactionBar />
         </div>
       </div>

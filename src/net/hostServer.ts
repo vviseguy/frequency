@@ -30,6 +30,7 @@ export class HostServer {
 
   onState: (s: RoomState) => void = () => {};
   onReaction: (emoji: string, fromName: string) => void = () => {};
+  onDial: (value: number, draggerId: string | null) => void = () => {};
 
   constructor(
     peer: Peer,
@@ -185,7 +186,7 @@ export class HostServer {
       this.conns.forEach(({ conn }) =>
         send(conn, this.state.ownerClientId, { t: 'DIAL', value, draggerId }),
       );
-      this.onState(this.state); // host sees its own dial too
+      this.onDial(value, draggerId); // host sees the live dial too
     }
 
     if (changed || Date.now() - this.lastBroadcast > 3000) {

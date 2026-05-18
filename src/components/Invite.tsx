@@ -30,25 +30,43 @@ export function Invite({ code }: { code: string }) {
   };
 
   return (
-    <div className="card-pop flex flex-col items-center gap-3 px-6 py-5">
-      <p className="text-xs font-extrabold uppercase tracking-[0.2em]" style={{ color: 'var(--text-soft)' }}>
-        Room code
-      </p>
-      <p data-testid="room-code" className="font-display text-6xl font-black leading-none tracking-[0.18em] text-grape">
-        {code}
-      </p>
-      <div className="flex w-full gap-2">
-        <button className="btn-primary flex-1 px-4 py-2 text-base" onClick={share}>
-          <span className="inline-flex items-center gap-2">
-            <Share2 size={18} strokeWidth={3} /> Share
-          </span>
-        </button>
-        <button className="btn-ghost flex-1 px-4 py-2 text-base" onClick={() => setShowQr(true)}>
-          <span className="inline-flex items-center gap-2">
-            <QrCode size={18} strokeWidth={3} /> QR
-          </span>
-        </button>
+    <div className="card-pop flex items-center gap-5 px-6 py-5">
+      <div className="flex min-w-0 flex-1 flex-col items-center gap-3 sm:items-start">
+        <p className="text-xs font-extrabold uppercase tracking-[0.2em]" style={{ color: 'var(--text-soft)' }}>
+          Room code
+        </p>
+        <p
+          data-testid="room-code"
+          className="font-display text-6xl font-black leading-none tracking-[0.18em] text-grape"
+        >
+          {code}
+        </p>
+        <div className="flex w-full gap-2">
+          <button className="btn-primary flex-1 px-4 py-2 text-base" onClick={share}>
+            <span className="inline-flex items-center gap-2">
+              <Share2 size={18} strokeWidth={3} /> Share
+            </span>
+          </button>
+          {/* QR button on mobile; on desktop the QR is shown inline -> */}
+          <button
+            className="btn-ghost flex-1 px-4 py-2 text-base sm:hidden"
+            onClick={() => setShowQr(true)}
+          >
+            <span className="inline-flex items-center gap-2">
+              <QrCode size={18} strokeWidth={3} /> QR
+            </span>
+          </button>
+        </div>
       </div>
+
+      {qr && (
+        <img
+          src={qr}
+          alt="Scan to join"
+          className="hidden h-36 w-36 shrink-0 rounded-lg border-3 border-ink p-2 sm:block"
+          style={{ background: '#fff' }}
+        />
+      )}
 
       <AnimatePresence>
         {showQr && (

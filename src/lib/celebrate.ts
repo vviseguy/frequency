@@ -20,13 +20,13 @@ export function popConfetti(power: 'small' | 'big' | 'huge' = 'big') {
   const f = gun();
   const n = power === 'small' ? 30 : power === 'big' ? 70 : 120;
   const v = power === 'huge' ? 50 : 40;
-  // from the two upper sides, arcing inward
-  f({ particleCount: n, angle: 300, spread: 70, startVelocity: v, origin: { x: 0, y: 0.3 }, colors: MEMPHIS, scalar: 1.1 });
-  f({ particleCount: n, angle: 240, spread: 70, startVelocity: v, origin: { x: 1, y: 0.3 }, colors: MEMPHIS, scalar: 1.1 });
+  // fountains spraying UP and inward from the two sides
+  f({ particleCount: n, angle: 65, spread: 55, startVelocity: v, origin: { x: 0, y: 0.75 }, colors: MEMPHIS, scalar: 1.1 });
+  f({ particleCount: n, angle: 115, spread: 55, startVelocity: v, origin: { x: 1, y: 0.75 }, colors: MEMPHIS, scalar: 1.1 });
   if (power === 'huge') {
     setTimeout(() => {
-      // a gentle shower from the top
-      f({ particleCount: 90, angle: 270, spread: 120, startVelocity: 30, origin: { x: 0.5, y: 0 }, colors: MEMPHIS, scalar: 1.1 });
+      f({ particleCount: 80, angle: 75, spread: 60, startVelocity: v + 8, origin: { x: 0, y: 0.85 }, colors: MEMPHIS, scalar: 1.1 });
+      f({ particleCount: 80, angle: 105, spread: 60, startVelocity: v + 8, origin: { x: 1, y: 0.85 }, colors: MEMPHIS, scalar: 1.1 });
     }, 220);
   }
 }

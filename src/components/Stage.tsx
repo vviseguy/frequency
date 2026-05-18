@@ -19,13 +19,15 @@ export function Stage({ children, focus = false }: { children: ReactNode; focus?
         aria-hidden
       />
 
-      {/* corner buttons — anchored to the screen, not the column */}
+      {/* corner buttons — boxed to the same centred frame as the content */}
       <div
-        className="fixed left-0 right-0 top-0 z-50 flex items-start justify-between px-2"
+        className="fixed left-0 right-0 top-0 z-50"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.6rem)' }}
       >
-        <Menu />
-        <RoomCode />
+        <div className="mx-auto flex w-full max-w-md items-start justify-between px-4">
+          <Menu />
+          <RoomCode />
+        </div>
       </div>
 
       <div className="relative h-full overflow-y-auto overflow-x-hidden">

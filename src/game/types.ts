@@ -5,6 +5,7 @@
 // for their own hidden target. The game then cycles through each player's
 // clue, the rest guessing on a shared dial. Number of sets (= clues each
 // person gives) is auto-sized by group size — no options.
+import type { Points } from './scoring';
 
 export type Phase =
   | 'LOBBY'
@@ -44,7 +45,13 @@ export interface Player {
 export interface RoundResult {
   clientId: string; // the clue-giver
   delta: number;
-  points: 0 | 2 | 3 | 4;
+  points: Points;
+}
+
+export interface GuessResult {
+  clientId: string; // a guesser
+  value: number;
+  points: Points;
 }
 
 /** One player's clue for the current set. */
@@ -54,9 +61,12 @@ export interface ClueCard {
   target: number; // 0..100, secret until this card's REVEAL
   clue: string | null;
   voided: boolean;
-  dial: { value: number; draggerId: string | null };
+  dial: { value: number; draggerId: string | null }; // co-op: the shared dial
+  guesses: Record<string, number>; // classic: each guesser's own guess
   ready: Record<string, boolean>;
-  result: RoundResult | null;
+  result: RoundResult | null; // co-op: the team result for the clue-giver
+  guessResults: GuessResult[] | null; // classic: per-guesser results
+  ownerBonus: number; // classic: clue-giver bonus (+2 bullseye, +1 "2-pt")
 }
 
 export interface GameSet {
@@ -86,7 +96,7 @@ export const MIN_PLAYERS = 2;
 
 // No user options — these are fixed, tuned values.
 export const CLUE_SECONDS = 70; // everyone thinks at once, give them room
-export const GUESS_SECONDS = 40;
+export const GUESS_SECONDS = 60;
 export const REVEAL_MS = 6500;
 export const BANDS = { bullseye: 5, close: 12, somewhat: 22 };
 
@@ -123,6 +133,18 @@ export const COOP_TIERS = [
 export function coopTier(total: number, max: number): number {
   if (max <= 0) return 0;
   return Math.max(0, Math.min(4, Math.floor((total / max) * 5)));
+}
+
+/** Points each player earned from a completed card (mode-aware). */
+export function cardPointDeltas(card: ClueCard, mode: RoomState['mode']): Record<string, number> {
+  const d: Record<string, number> = {};
+  if (mode === 'coop') {
+    if (card.result) d[card.result.clientId] = card.result.points;
+    return d;
+  }
+  for (const r of card.guessResults ?? []) d[r.clientId] = (d[r.clientId] ?? 0) + r.points;
+  if (card.ownerBonus) d[card.ownerClientId] = (d[card.ownerClientId] ?? 0) + card.ownerBonus;
+  return d;
 }
 
 export function currentCard(state: RoomState): ClueCard | null {

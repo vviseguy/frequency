@@ -120,6 +120,7 @@ class Net {
       net().set({ role: 'host', status: 'connected', code: s.code });
     };
     hs.onReaction = (emoji, fromName) => net().pushReaction(emoji, fromName);
+    hs.onDial = (v, d) => game().setDial(v, d);
     hs.addLocalPlayer(this.myId, this.name);
     hs.start();
     this.host = hs;

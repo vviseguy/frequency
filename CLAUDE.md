@@ -42,10 +42,16 @@ CI = `.github/workflows/ci.yml` (build + unit + e2e), separate from
 - **INTRO** is an optional one-card how-to before the first set; host toggles
   it in the lobby (`intro` in `RoomState`, default off). Default off keeps
   tests/e2e flow unchanged.
-- **Modes** (`mode`, default `classic`): `classic` = individual standings
-  (clue-giver scores). `coop` = one team score; moving the dial un-readies
-  everyone (re-approve), and Scoreboard/FinalRecap show a thick 5-tier
-  `CoopMeter` from 0..(clues×4) instead of a ranking.
+- **Modes** (`mode`, default `classic`):
+  - `classic` = **individual guesses**: each guesser owns `card.guesses[id]`
+    (their own pointer; moving un-readies just them). At reveal everyone
+    scores their own band (4/3/2/0); the clue-giver earns a bonus of +2 per
+    bullseye guesser and +1 per "2-point" guesser. Individual standings.
+  - `coop` = one **shared** `card.dial`; moving it un-readies everyone
+    (re-approve). Clue-giver scored by the shared dial; Scoreboard/Recap
+    show a thick 5-tier `CoopMeter` (0..clues×4), not a ranking.
+- Guess order within a set is **shuffled** each set (don't assume seniority
+  order in tests — derive the owner from `currentCard`).
 - Timers use absolute deadlines so they survive a host handoff.
 - **Toasts**: `toast(msg, kind)` (see `useToast`) — used for errors like a
   dead room code. `<Toaster/>` renders top-right in app style.

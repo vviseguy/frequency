@@ -33,10 +33,10 @@ describe('setsTargetFor (inverse to group size)', () => {
 });
 
 describe('makeSet', () => {
-  it('makes one unique-prompt card per connected player in seniority order', () => {
+  it('makes one unique-prompt card per connected player (order shuffled)', () => {
     const s = room(3);
     const set = makeSet(s, PROMPTS, 0);
-    expect(set.cards.map((c) => c.ownerClientId)).toEqual(['host', 'p2', 'p3']);
+    expect(set.cards.map((c) => c.ownerClientId).sort()).toEqual(['host', 'p2', 'p3']);
     expect(new Set(set.cards.map((c) => c.prompt.id)).size).toBe(3);
     for (const c of set.cards) {
       expect(c.target).toBeGreaterThanOrEqual(8);
@@ -59,11 +59,12 @@ describe('clue progress / readiness', () => {
   it('a card is ready only when all non-owner players locked in', () => {
     let s = room(3);
     s = { ...s, set: makeSet(s, PROMPTS, 0) };
-    const card = s.set!.cards[0]; // owner = host -> guessers p2, p3
+    const card = s.set!.cards[0];
+    const guessers = ['host', 'p2', 'p3'].filter((id) => id !== card.ownerClientId);
     expect(allReadyForCard(s, card)).toBe(false);
-    card.ready = { p2: true };
+    card.ready = { [guessers[0]]: true };
     expect(allReadyForCard(s, card)).toBe(false);
-    card.ready = { p2: true, p3: true };
+    card.ready = { [guessers[0]]: true, [guessers[1]]: true };
     expect(allReadyForCard(s, card)).toBe(true);
   });
 });

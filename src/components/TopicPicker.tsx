@@ -92,6 +92,7 @@ export function TopicPicker({ room, onClose }: { room: RoomState; onClose: () =>
             {packs.map((p) => {
               const on = selected.has(p.id);
               const emojis = splitEmojis(p.emoji);
+              const bg = emojis.length > 1 ? emojis.slice(1) : emojis;
               return (
                 <motion.button
                   key={p.id}
@@ -99,24 +100,21 @@ export function TopicPicker({ room, onClose }: { room: RoomState; onClose: () =>
                   whileTap={{ scale: 0.95 }}
                   disabled={!isHost}
                   onClick={() => toggle(p.id)}
-                  className="card-pop relative overflow-hidden p-4 text-left transition-colors"
-                  style={
-                    on
-                      ? { background: '#7C5CFF', color: '#fff', borderColor: 'var(--line)' }
-                      : { opacity: 0.7 }
-                  }
+                  className="card-pop relative overflow-hidden p-4 text-left transition-all"
+                  style={{
+                    borderColor: on ? '#7C5CFF' : 'var(--line)',
+                    boxShadow: on ? '4px 4px 0 0 #7C5CFF' : undefined,
+                    opacity: on ? 1 : 0.6,
+                  }}
                 >
-                  <CardEmojis emojis={emojis} on={on} />
+                  <CardEmojis emojis={bg} on={on} />
                   <div className="relative">
-                    <div className="text-3xl">{emojis.slice(0, 3).join('')}</div>
+                    <div className="text-3xl">{emojis[0]}</div>
                     <div className="font-display mt-1 text-lg font-black leading-tight">{p.name}</div>
-                    <div
-                      className="text-xs font-extrabold"
-                      style={{ color: on ? 'rgba(255,255,255,0.75)' : 'var(--text-soft)' }}
-                    >
+                    <div className="text-xs font-extrabold" style={{ color: 'var(--text-soft)' }}>
                       {p.count} prompts
                     </div>
-                    <div className={`mt-2 font-display text-sm font-black ${on ? 'text-white' : 'text-grape'}`}>
+                    <div className="mt-2 font-display text-sm font-black text-grape">
                       {on ? '✓ included' : 'tap to add'}
                     </div>
                   </div>

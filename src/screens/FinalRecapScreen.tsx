@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { CoopMeter } from '../components/CoopMeter';
 import { Stage } from '../components/Stage';
-import { COOP_TIERS, coopTier, playerById, type RoomState } from '../game/types';
+import { cardPointDeltas, COOP_TIERS, coopTier, playerById, type RoomState } from '../game/types';
 import { send, useIsHost } from '../hooks/useNet';
 import { playSfx } from '../hooks/useSound';
 import { popConfetti } from '../lib/celebrate';
@@ -17,22 +17,24 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
   useEffect(() => {
     if (finished) return;
     const id = setTimeout(() => {
-      const pts = cards[step]?.result?.points ?? 0;
+      const d = cards[step] ? cardPointDeltas(cards[step], room.mode) : {};
+      const pts = Math.max(0, ...Object.values(d));
       playSfx(pts >= 3 ? 'score3' : pts ? 'score2' : 'whiff');
       setStep((s) => s + 1);
     }, 1100);
     return () => clearTimeout(id);
-  }, [step, finished, cards]);
+  }, [step, finished, cards, room.mode]);
 
   const standings = useMemo(() => {
     const totals = new Map<string, number>();
     cards.slice(0, step).forEach((c) => {
-      if (c.result) totals.set(c.result.clientId, (totals.get(c.result.clientId) ?? 0) + c.result.points);
+      const d = cardPointDeltas(c, room.mode);
+      for (const [id, pts] of Object.entries(d)) totals.set(id, (totals.get(id) ?? 0) + pts);
     });
     return [...room.players]
       .map((p) => ({ p, score: totals.get(p.clientId) ?? 0 }))
       .sort((a, b) => b.score - a.score);
-  }, [step, cards, room.players]);
+  }, [step, cards, room.players, room.mode]);
 
   const teamSoFar = cards.slice(0, step).reduce((n, c) => n + (c.result?.points ?? 0), 0);
   const maxPossible = cards.length * 4;
@@ -81,8 +83,16 @@ export function FinalRecapScreen({ room }: { room: RoomState }) {
               “{cur.prompt.left} ↔ {cur.prompt.right}”
             </p>
             <p className="font-display mt-1 text-2xl font-black">
-              {playerById(room, cur.ownerClientId)?.name.replace(/^\p{Emoji}\s*/u, '')} scored{' '}
-              <span className="text-grape">+{cur.result?.points ?? 0}</span>
+              {playerById(room, cur.ownerClientId)?.name.replace(/^\p{Emoji}\s*/u, '')}{' '}
+              {coop ? (
+                <>
+                  scored <span className="text-grape">+{cur.result?.points ?? 0}</span>
+                </>
+              ) : (
+                <>
+                  earned <span className="text-grape">+{cur.ownerBonus}</span> clue bonus
+                </>
+              )}
             </p>
           </motion.div>
         )}

@@ -26,16 +26,26 @@ function makeCard(ownerClientId: string, prompt: Prompt): ClueCard {
     clue: null,
     voided: false,
     dial: { value: 50, draggerId: null },
+    guesses: {},
     ready: {},
     result: null,
+    guessResults: null,
+    ownerBonus: 0,
   };
 }
 
-/** Build a fresh set: one clue card per connected player, unique prompts. */
+function shuffle<T>(a: T[]): T[] {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/** Build a fresh set: one clue card per connected player, unique prompts.
+ *  The order clues are guessed in is shuffled each set. */
 export function makeSet(state: RoomState, prompts: Prompt[], index: number): GameSet {
-  const players = state.players
-    .filter((p) => p.connected)
-    .sort((a, b) => a.joinedAt - b.joinedAt);
+  const players = shuffle(state.players.filter((p) => p.connected).slice());
   const pool = promptsForPacks(prompts, state.packs ?? []);
   const recent = new Set(state.history.slice(-pool.length).map((c) => c.prompt.id));
   const chosen = pickPrompts(pool, recent, players.length);

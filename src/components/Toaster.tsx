@@ -16,8 +16,9 @@ const BG: Record<ToastKind, string> = {
 export function Toaster() {
   const toasts = useToasts();
   return (
-    <div className="fixed right-3 top-16 z-[80] flex w-[min(20rem,calc(100vw-1.5rem))] flex-col gap-2">
-      <AnimatePresence>
+    <div className="pointer-events-none fixed left-0 right-0 top-16 z-[80]">
+      <div className="mx-auto flex w-full max-w-md flex-col items-end gap-2 px-4">
+        <AnimatePresence>
         {toasts.map((t) => (
           <motion.button
             key={t.id}
@@ -27,14 +28,16 @@ export function Toaster() {
             exit={{ opacity: 0, x: 40, scale: 0.9 }}
             transition={{ type: 'spring', stiffness: 340, damping: 24 }}
             onClick={() => dismissToast(t.id)}
-            className={`flex items-start gap-2 rounded-2xl border-3 border-ink ${BG[t.kind]} px-4 py-3
-              text-left font-display text-sm font-extrabold shadow-pop`}
+            className={`pointer-events-auto flex max-w-[20rem] items-start gap-2 rounded-2xl
+              border-3 border-ink ${BG[t.kind]} px-4 py-3 text-left font-display text-sm
+              font-extrabold shadow-pop`}
           >
             <span className="mt-0.5 shrink-0">{ICON[t.kind]}</span>
             <span className="leading-tight">{t.message}</span>
           </motion.button>
         ))}
-      </AnimatePresence>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
