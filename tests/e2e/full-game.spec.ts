@@ -26,8 +26,8 @@ test('full game: simultaneous clues, cycle, recap, back to lobby', async ({ brow
   await host.getByTestId('start-btn').click();
   await waitAllPhase(pages, 'CLUE');
 
-  // 2 players -> 3 sets. Scoreboard between sets; the LAST clue skips the
-  // scoreboard and drops straight into the recap.
+  // 2 players -> 3 sets. Scoreboard between sets AND after the final set;
+  // the host advances from the last scoreboard into the recap.
   for (let set = 1; set <= 3; set++) {
     const stop = await playUntilScoreboard(pages, host);
     if (stop === 'FINAL_RECAP') break;

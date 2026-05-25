@@ -191,14 +191,15 @@ function toReveal(state: RoomState, ctx: Ctx, voided = false): RoomState {
     deltas[p.clientId] ? { ...p, totalScore: p.totalScore + deltas[p.clientId] } : p,
   );
 
-  // The very last clue of the whole game: skip the snap score reveal AND
-  // the scoreboard — go straight into the slow recap, which unveils the
-  // totals at its own pace (no spoiler before the build-up).
+  // The very last clue of the whole game skips its own snap REVEAL, but the
+  // end-of-set SCOREBOARD still runs — players want to see the round close
+  // out before the recap. NEXT_ROUND from that final scoreboard goes to
+  // FINAL_RECAP (see the NEXT_ROUND handler).
   const lastTurn = si === state.setsTarget - 1 && idx === set.cards.length - 1;
   if (lastTurn) {
     return {
       ...state,
-      phase: 'FINAL_RECAP',
+      phase: 'SCOREBOARD',
       players,
       sets,
       history: [...state.history, ...cards],

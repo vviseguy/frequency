@@ -15,11 +15,20 @@ function shuffle<T>(a: T[]): T[] {
   return a;
 }
 
+// Uniform 1..99 picks feel a touch middle-heavy in play because the edges
+// have less band overlap; a small power-skew (<1) on the distance-from-centre
+// nudges results outward without making edge targets the norm.
+function randomTarget(): number {
+  const u = Math.random() * 2 - 1; // -1..1
+  const skewed = Math.sign(u) * Math.pow(Math.abs(u), 0.9);
+  return Math.max(1, Math.min(99, Math.round(50 + skewed * 49)));
+}
+
 function makeCard(ownerClientId: string, prompt: Prompt): ClueCard {
   return {
     ownerClientId,
     prompt,
-    target: 8 + Math.floor(Math.random() * 85), // 8..92, off the edges
+    target: randomTarget(),
     clue: null,
     voided: false,
     dial: { value: 50, draggerId: null },
