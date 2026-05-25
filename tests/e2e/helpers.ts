@@ -43,8 +43,8 @@ export async function joinRoom(
 /**
  * Drive the flow from the host page until a set ends: everyone submits
  * their clues, then the group cycles each clue locking in. Stops at the
- * SCOREBOARD between sets (including after the final clue — the host
- * advances from there into FINAL_RECAP). Returns the phase it stopped on.
+ * SCOREBOARD between sets, or FINAL_RECAP after the very last clue (the
+ * cumulative scoreboard is skipped there). Returns the phase it stopped on.
  */
 export async function playUntilScoreboard(
   pages: Page[],

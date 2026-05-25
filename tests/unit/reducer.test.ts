@@ -188,28 +188,25 @@ describe('sets & end of game', () => {
     expect(s.setsDone).toBe(1);
   });
 
-  it('the final clue skips the snap reveal but still lands on the scoreboard', () => {
+  it('the final clue plays its REVEAL but skips the cumulative scoreboard', () => {
     let s = toGuessing();
     s.setsTarget = 1; // treat it as a one-set game
     const n = currentSet(s)!.cards.length;
     for (let i = 0; i < n; i++) {
       const last = i === n - 1;
       for (const g of guessersOf(s)) s = reduce(s, g, { t: 'SET_READY', ready: true }, ctx());
+      expect(s.phase).toBe('REVEAL');
+      now += 9000;
+      s = tick(s, ctx());
       if (last) {
-        // no per-card REVEAL — straight to the end-of-set scoreboard
-        expect(s.phase).toBe('SCOREBOARD');
-        expect(s.setsDone).toBe(s.setsTarget);
+        // After the last REVEAL, jump straight to the recap — no cumulative
+        // scoreboard spoiler before the build-up.
+        expect(s.phase).toBe('FINAL_RECAP');
       } else {
-        expect(s.phase).toBe('REVEAL');
-        now += 9000;
-        s = tick(s, ctx());
         expect(s.phase).toBe('GUESS');
       }
     }
     expect(s.history).toHaveLength(n);
-    // Host advances from the final scoreboard to the recap.
-    s = reduce(s, 'host', { t: 'NEXT_ROUND' }, ctx());
-    expect(s.phase).toBe('FINAL_RECAP');
     s = reduce(s, 'host', { t: 'PLAY_AGAIN' }, ctx());
     expect(s.phase).toBe('LOBBY');
     expect(s.history).toHaveLength(0);

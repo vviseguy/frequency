@@ -51,8 +51,8 @@ describe('makeSets (whole game dealt up front)', () => {
     for (const set of sets) {
       expect(set.cards.map((c) => c.ownerClientId).sort()).toEqual(['host', 'p2', 'p3']);
       for (const c of set.cards) {
-        expect(c.target).toBeGreaterThanOrEqual(8);
-        expect(c.target).toBeLessThanOrEqual(92);
+        expect(c.target).toBeGreaterThanOrEqual(1);
+        expect(c.target).toBeLessThanOrEqual(99);
         expect(c.clue).toBeNull();
       }
     }

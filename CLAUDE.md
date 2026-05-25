@@ -53,11 +53,13 @@ CI = `.github/workflows/ci.yml` (build + unit + e2e), separate from
   game cycles each set's clues; `SCOREBOARD` between sets advances
   `setIndex` (it never returns to `CLUE`). Don't reintroduce a per-set clue
   phase or a clue timer.
-- **The final clue has no snap reveal.** `toReveal` detects the last clue
-  of the last set and skips that card's `REVEAL` screen, landing on the
-  end-of-set `SCOREBOARD` directly. The host then advances to `FINAL_RECAP`
-  via the normal `NEXT_ROUND` button (its `setsDone >= setsTarget` branch
-  routes there). Earlier clues still snap-reveal normally.
+- **The final clue's per-card REVEAL still plays** (so players see the
+  4/3/2 breakdown for that card), but `afterReveal` then skips the
+  cumulative end-of-set `SCOREBOARD` and jumps straight to `FINAL_RECAP` —
+  the recap should unveil totals at its own pace, not after a spoiler
+  screen. Intermediate sets still pause on the `SCOREBOARD` for a breather.
+  The `NEXT_ROUND → FINAL_RECAP` branch is now effectively dead (kept as a
+  harmless safety) since the last set never shows a scoreboard.
 - **No game options.** Length is auto-sized inversely to group size:
   `setsTargetFor()` → 3 / 2 / 1 clues per person (≤4 / ≤8 / 9+).
 - **INTRO** is an optional how-to before the first set; host toggles it in

@@ -191,24 +191,6 @@ function toReveal(state: RoomState, ctx: Ctx, voided = false): RoomState {
     deltas[p.clientId] ? { ...p, totalScore: p.totalScore + deltas[p.clientId] } : p,
   );
 
-  // The very last clue of the whole game skips its own snap REVEAL, but the
-  // end-of-set SCOREBOARD still runs — players want to see the round close
-  // out before the recap. NEXT_ROUND from that final scoreboard goes to
-  // FINAL_RECAP (see the NEXT_ROUND handler).
-  const lastTurn = si === state.setsTarget - 1 && idx === set.cards.length - 1;
-  if (lastTurn) {
-    return {
-      ...state,
-      phase: 'SCOREBOARD',
-      players,
-      sets,
-      history: [...state.history, ...cards],
-      setsDone: state.setsDone + 1,
-      phaseEndsAt: null,
-      updatedAt: ctx.now,
-    };
-  }
-
   return {
     ...state,
     phase: 'REVEAL',
@@ -234,10 +216,13 @@ function afterReveal(state: RoomState, ctx: Ctx): RoomState {
       updatedAt: ctx.now,
     };
   }
-  // set complete -> bank cards, breather on the scoreboard
+  // Last card of the last set: skip the cumulative scoreboard (it would
+  // spoil the totals before the build-up) and jump straight to the recap.
+  // Earlier sets still pause on the scoreboard for a breather.
+  const lastSet = si === state.setsTarget - 1;
   return {
     ...state,
-    phase: 'SCOREBOARD',
+    phase: lastSet ? 'FINAL_RECAP' : 'SCOREBOARD',
     history: [...state.history, ...set.cards],
     setsDone: state.setsDone + 1,
     phaseEndsAt: null,
